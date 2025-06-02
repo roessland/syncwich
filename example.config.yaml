@@ -1,0 +1,18 @@
+# Example configuration file for Runalyze CLI
+# Copy this file to config.yaml and update with your values
+
+# Logging level for the application
+# Available options: debug, info, warn, error
+log_level: "info"
+
+# Your Runalyze account credentials
+username: "your_username"  # Replace with your Runalyze username
+password: "your_password"  # Replace with your Runalyze password
+
+# Path to store authentication cookies
+# Use ~ to reference your home directory
+cookie_path: "~/path/to/cookie.json"
+
+# Directory where activities will be saved
+# Use ~ to reference your home directory
+save_dir: "~/path/to/activities" 
