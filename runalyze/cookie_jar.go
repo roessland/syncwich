@@ -3,6 +3,7 @@ package runalyze
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -15,8 +16,10 @@ import (
 // persistentCookieJar implements a cookie jar that persists cookies to disk
 type persistentCookieJar struct {
 	*cookiejar.Jar
-	path string
-	mu   sync.Mutex
+	path        string
+	mu          sync.Mutex
+	logger      *log.Logger
+	shouldLogFn func(level string) bool
 }
 
 // cookieEntry represents a single cookie entry for serialization
@@ -36,15 +39,17 @@ type cookieEntry struct {
 }
 
 // newPersistentCookieJar creates a new persistent cookie jar
-func newPersistentCookieJar(path string) (*persistentCookieJar, error) {
+func newPersistentCookieJar(path string, logger *log.Logger, shouldLogFn func(level string) bool) (*persistentCookieJar, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cookie jar: %w", err)
 	}
 
 	pjar := &persistentCookieJar{
-		Jar:  jar,
-		path: path,
+		Jar:         jar,
+		path:        path,
+		logger:      logger,
+		shouldLogFn: shouldLogFn,
 	}
 
 	// Try to load existing cookies
@@ -74,14 +79,32 @@ func (j *persistentCookieJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
 
 // load reads cookies from the file
 func (j *persistentCookieJar) load() error {
+	if j.shouldLogFn("debug") {
+		j.logger.Printf("Loading cookies from: %s", j.path)
+	}
+
 	data, err := os.ReadFile(j.path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			if j.shouldLogFn("debug") {
+				j.logger.Printf("Cookie file does not exist: %s", j.path)
+			}
+		}
 		return err
 	}
 
 	var entries []cookieEntry
 	if err := json.Unmarshal(data, &entries); err != nil {
 		return fmt.Errorf("failed to unmarshal cookies: %w", err)
+	}
+
+	if j.shouldLogFn("trace") {
+		j.logger.Printf("Loaded %d cookie entries from file", len(entries))
+		for i, entry := range entries {
+			j.logger.Printf("  Cookie %d: %s=%s (domain: %s)", i+1, entry.Name, entry.Value, entry.Domain)
+		}
+	} else if j.shouldLogFn("debug") {
+		j.logger.Printf("Loaded %d cookie entries from file", len(entries))
 	}
 
 	// Convert entries back to cookies
@@ -105,10 +128,17 @@ func (j *persistentCookieJar) load() error {
 
 	// Set cookies for all domains
 	urls := make(map[string]*url.URL)
+
+	// Handle cookies with empty domains by treating them as runalyze.com cookies
+	var runalyzeCookies []*http.Cookie
+
 	for _, cookie := range cookies {
 		if cookie.Domain == "" {
+			// Treat empty domain cookies as belonging to runalyze.com
+			runalyzeCookies = append(runalyzeCookies, cookie)
 			continue
 		}
+
 		domain := cookie.Domain
 		if !strings.HasPrefix(domain, "http://") && !strings.HasPrefix(domain, "https://") {
 			domain = "https://" + domain
@@ -122,6 +152,7 @@ func (j *persistentCookieJar) load() error {
 		}
 	}
 
+	// Set cookies for explicit domains
 	for _, u := range urls {
 		var domainCookies []*http.Cookie
 		for _, cookie := range cookies {
@@ -132,11 +163,23 @@ func (j *persistentCookieJar) load() error {
 		j.Jar.SetCookies(u, domainCookies)
 	}
 
+	// Set cookies with empty domains for runalyze.com
+	if len(runalyzeCookies) > 0 {
+		runalyzeURL, err := url.Parse("https://runalyze.com")
+		if err == nil {
+			j.Jar.SetCookies(runalyzeURL, runalyzeCookies)
+		}
+	}
+
 	return nil
 }
 
 // save writes cookies to the file
 func (j *persistentCookieJar) save() error {
+	if j.shouldLogFn("trace") {
+		j.logger.Printf("Saving cookies to: %s", j.path)
+	}
+
 	// Get all cookies from the jar
 	entries := make([]cookieEntry, 0)
 	for _, u := range []string{"https://runalyze.com"} {
@@ -163,6 +206,13 @@ func (j *persistentCookieJar) save() error {
 		}
 	}
 
+	if j.shouldLogFn("trace") {
+		j.logger.Printf("Saving %d cookie entries to file", len(entries))
+		for i, entry := range entries {
+			j.logger.Printf("  Cookie %d: %s=%s (domain: %s)", i+1, entry.Name, entry.Value, entry.Domain)
+		}
+	}
+
 	data, err := json.MarshalIndent(entries, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal cookies: %w", err)
@@ -170,6 +220,10 @@ func (j *persistentCookieJar) save() error {
 
 	if err := os.WriteFile(j.path, data, 0600); err != nil {
 		return fmt.Errorf("failed to write cookies: %w", err)
+	}
+
+	if j.shouldLogFn("trace") {
+		j.logger.Printf("Successfully saved cookies to: %s", j.path)
 	}
 
 	return nil

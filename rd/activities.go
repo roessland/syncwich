@@ -101,6 +101,12 @@ func (it *ActivityIterator) Next() (string, bool) {
 		}
 	}
 
+	// Double-check bounds after potential recursive call
+	if it.activityIndex >= len(it.activities) {
+		it.done = true
+		return "", false
+	}
+
 	// Return the next activity ID
 	activityID := it.activities[it.activityIndex]
 	it.activityIndex++

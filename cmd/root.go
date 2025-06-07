@@ -218,8 +218,17 @@ var downloadCmd = &cobra.Command{
 				if err != nil {
 					return fmt.Errorf("failed to get data after login: %w", err)
 				}
+				// Persist cookies immediately after successful login verification
+				if err := client.PersistCookies(); err != nil {
+					return fmt.Errorf("failed to persist cookies after login: %w", err)
+				}
 			} else {
 				return fmt.Errorf("failed to get data: %w", err)
+			}
+		} else {
+			// Persist cookies immediately after successful verification with existing cookies
+			if err := client.PersistCookies(); err != nil {
+				return fmt.Errorf("failed to persist cookies: %w", err)
 			}
 		}
 

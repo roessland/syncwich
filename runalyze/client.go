@@ -69,8 +69,30 @@ func New(username, password, cookiePath string) (*Client, error) {
 		return nil, fmt.Errorf("failed to create cookie directory: %w", err)
 	}
 
-	// Create persistent cookie jar
-	jar, err := newPersistentCookieJar(expandedPath)
+	// Create logger first so we can pass it to the cookie jar
+	logger := log.New(os.Stderr, "[runalyze] ", log.LstdFlags)
+	logLevel := viper.GetString("log_level")
+
+	// Create shouldLog function for the cookie jar
+	shouldLogFn := func(level string) bool {
+		levels := map[string]int{
+			"trace": 0,
+			"debug": 1,
+			"info":  2,
+			"warn":  3,
+			"error": 4,
+		}
+
+		configuredLevel := logLevel
+		if configuredLevel == "" {
+			configuredLevel = "info" // Default to info if not set
+		}
+
+		return levels[level] >= levels[configuredLevel]
+	}
+
+	// Create persistent cookie jar with logger
+	jar, err := newPersistentCookieJar(expandedPath, logger, shouldLogFn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cookie jar: %w", err)
 	}
@@ -92,8 +114,8 @@ func New(username, password, cookiePath string) (*Client, error) {
 		username:   username,
 		password:   password,
 		cookiePath: expandedPath,
-		logger:     log.New(os.Stderr, "[runalyze] ", log.LstdFlags),
-		logLevel:   viper.GetString("log_level"),
+		logger:     logger,
+		logLevel:   logLevel,
 	}, nil
 }
 
@@ -308,9 +330,9 @@ func (c *Client) GetDataBrowser(startOfWeek time.Time) ([]byte, error) {
 	return body, nil
 }
 
-// GetFit retrieves a FIT file for a specific activity ID
-func (c *Client) GetFit(activityID string) ([]byte, string, error) {
-	url := fmt.Sprintf("%s/activity/%s/export/file/fit", baseURL, activityID)
+// getActivityExport retrieves an export file for a specific activity ID and format
+func (c *Client) getActivityExport(activityID, format string) ([]byte, string, error) {
+	url := fmt.Sprintf("%s/activity/%s/export/file/%s", baseURL, activityID, format)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -348,42 +370,23 @@ func (c *Client) GetFit(activityID string) ([]byte, string, error) {
 	return body, matches[1], nil
 }
 
+// GetFit retrieves a FIT file for a specific activity ID
+func (c *Client) GetFit(activityID string) ([]byte, string, error) {
+	return c.getActivityExport(activityID, "fit")
+}
+
 // GetTcx retrieves a TCX file for a specific activity ID
 func (c *Client) GetTcx(activityID string) ([]byte, string, error) {
-	url := fmt.Sprintf("%s/activity/%s/export/file/tcx", baseURL, activityID)
+	return c.getActivityExport(activityID, "tcx")
+}
 
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to create request: %w", err)
+// PersistCookies explicitly saves the current cookies to disk
+func (c *Client) PersistCookies() error {
+	// Cast the jar to our persistent cookie jar to access the save method
+	if pjar, ok := c.httpClient.Jar.(*persistentCookieJar); ok {
+		pjar.mu.Lock()
+		defer pjar.mu.Unlock()
+		return pjar.save()
 	}
-
-	for k, v := range commonHeaders {
-		req.Header.Set(k, v)
-	}
-	req.Header.Set("referer", baseURL+"/dashboard")
-
-	resp, body, err := c.doRequest(req)
-	if err != nil {
-		return nil, "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	// Extract filename from content-disposition header
-	contentDisposition := resp.Header.Get("content-disposition")
-	if contentDisposition == "" {
-		return nil, "", fmt.Errorf("content-disposition header not found")
-	}
-
-	// Parse filename from header
-	re := regexp.MustCompile(`filename="([^"]+)"`)
-	matches := re.FindStringSubmatch(contentDisposition)
-	if len(matches) < 2 {
-		return nil, "", fmt.Errorf("filename not found in content-disposition header")
-	}
-
-	return body, matches[1], nil
+	return fmt.Errorf("cookie jar is not a persistent cookie jar")
 }
