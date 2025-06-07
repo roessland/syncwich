@@ -24,18 +24,33 @@ func findActivityIds(htmlContent []byte) []string {
 type ActivityIterator struct {
 	client        *runalyze.Client
 	ctx           context.Context
-	startDate     time.Time
+	untilDate     time.Time
+	sinceDate     time.Time
 	done          bool
 	activities    []string
 	activityIndex int
 }
 
 // NewActivityIterator creates a new ActivityIterator starting from the given date
-func NewActivityIterator(client *runalyze.Client, startDate time.Time) *ActivityIterator {
+func NewActivityIterator(client *runalyze.Client, untilDate time.Time) *ActivityIterator {
 	return &ActivityIterator{
 		client:        client,
 		ctx:           context.Background(),
-		startDate:     startDate,
+		untilDate:     untilDate,
+		sinceDate:     time.Time{}, // Zero time means no limit
+		done:          false,
+		activities:    nil,
+		activityIndex: 0,
+	}
+}
+
+// NewActivityIteratorWithSince creates a new ActivityIterator starting from the given date and stopping at the since date
+func NewActivityIteratorWithSince(client *runalyze.Client, untilDate, sinceDate time.Time) *ActivityIterator {
+	return &ActivityIterator{
+		client:        client,
+		ctx:           context.Background(),
+		untilDate:     untilDate,
+		sinceDate:     sinceDate,
 		done:          false,
 		activities:    nil,
 		activityIndex: 0,
@@ -44,8 +59,14 @@ func NewActivityIterator(client *runalyze.Client, startDate time.Time) *Activity
 
 // fetchActivitiesForWeek fetches activities for the current week
 func (it *ActivityIterator) fetchActivitiesForWeek() error {
+	// Check if we've gone beyond the since date
+	if !it.sinceDate.IsZero() && it.untilDate.Before(it.sinceDate) {
+		it.done = true
+		return nil
+	}
+
 	// Get the data browser page for this week
-	data, err := it.client.GetDataBrowser(it.startDate)
+	data, err := it.client.GetDataBrowser(it.untilDate)
 	if err != nil {
 		return err
 	}
@@ -55,7 +76,7 @@ func (it *ActivityIterator) fetchActivitiesForWeek() error {
 	it.activityIndex = 0
 
 	// Move to the previous week
-	it.startDate = it.startDate.AddDate(0, 0, -7)
+	it.untilDate = it.untilDate.AddDate(0, 0, -7)
 
 	return nil
 }

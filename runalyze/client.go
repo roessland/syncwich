@@ -54,11 +54,7 @@ type Client struct {
 // New creates a new Runalyze client
 func New(username, password, cookiePath string) (*Client, error) {
 	if cookiePath == "" {
-		home, err := homedir.Dir()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get home directory: %w", err)
-		}
-		cookiePath = filepath.Join(home, "proj", "runalyzedump", "cookie.json")
+		cookiePath = viper.GetString("cookie_path")
 	}
 
 	// Expand home directory if present
@@ -315,6 +311,46 @@ func (c *Client) GetDataBrowser(startOfWeek time.Time) ([]byte, error) {
 // GetFit retrieves a FIT file for a specific activity ID
 func (c *Client) GetFit(activityID string) ([]byte, string, error) {
 	url := fmt.Sprintf("%s/activity/%s/export/file/fit", baseURL, activityID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	for k, v := range commonHeaders {
+		req.Header.Set(k, v)
+	}
+	req.Header.Set("referer", baseURL+"/dashboard")
+
+	resp, body, err := c.doRequest(req)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	// Extract filename from content-disposition header
+	contentDisposition := resp.Header.Get("content-disposition")
+	if contentDisposition == "" {
+		return nil, "", fmt.Errorf("content-disposition header not found")
+	}
+
+	// Parse filename from header
+	re := regexp.MustCompile(`filename="([^"]+)"`)
+	matches := re.FindStringSubmatch(contentDisposition)
+	if len(matches) < 2 {
+		return nil, "", fmt.Errorf("filename not found in content-disposition header")
+	}
+
+	return body, matches[1], nil
+}
+
+// GetTcx retrieves a TCX file for a specific activity ID
+func (c *Client) GetTcx(activityID string) ([]byte, string, error) {
+	url := fmt.Sprintf("%s/activity/%s/export/file/tcx", baseURL, activityID)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {

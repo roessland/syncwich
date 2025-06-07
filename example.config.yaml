@@ -10,9 +10,9 @@ username: "your_username"  # Replace with your Runalyze username
 password: "your_password"  # Replace with your Runalyze password
 
 # Path to store authentication cookies
-# Use ~ to reference your home directory
-cookie_path: "~/path/to/cookie.json"
+# Default: ~/.runalyzedump/runalyze-cookie.json
+# cookie_path: "~/path/to/cookie.json"
 
 # Directory where activities will be saved
-# Use ~ to reference your home directory
-save_dir: "~/path/to/activities" 
+# Default: ~/.runalyzedump/activities
+# save_dir: "~/path/to/activities" 
