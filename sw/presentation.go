@@ -1,9 +1,9 @@
-package rd
+package sw
 
 import (
 	"time"
 
-	"github.com/roessland/runalyzedump/pkg/output"
+	"github.com/roessland/syncwich/pkg/output"
 )
 
 // PresentationService handles all presentation logic

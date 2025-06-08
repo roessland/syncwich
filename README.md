@@ -1,16 +1,16 @@
-# Runalyze Dump
+# Syncwich
 
-A tool to dump Runalyze data for analysis and backup purposes.
+A tool to sync and dump Runalyze data for analysis and backup purposes.
 
 ## Installation
 
 ```bash
-go build -o runalyzedump
+go build -o syncwich
 ```
 
 ## Configuration
 
-Copy `example.config.yaml` to `~/.runalyzedump/runalyzedump.yaml` and update with your Runalyze credentials.
+Copy `example.config.yaml` to `~/.syncwich/syncwich.yaml` and update with your Runalyze credentials.
 
 ## Usage
 
@@ -40,23 +40,23 @@ Example output:
 
 ```bash
 # Download last 4 weeks of activities (default)
-./runalyzedump download
+./syncwich download
 
 # Download specific date range
-./runalyzedump download --since 2023-12-01 --until 2023-12-31
+./syncwich download --since 2023-12-01 --until 2023-12-31
 
 # Download last 30 days
-./runalyzedump download --since 30d
+./syncwich download --since 30d
 ```
 
 ### JSON Mode (for automation/cron jobs)
 
 ```bash
 # Output structured JSON logs to stdout (no interactive messages)
-./runalyzedump download --json
+./syncwich download --json
 
 # Use with systemd service or cron job
-./runalyzedump download --json | systemd-cat -t runalyzedump
+./syncwich download --json | systemd-cat -t syncwich
 ```
 
 ## Activity Type Detection
@@ -107,9 +107,11 @@ just show-coverage
 
 The testing system uses **Golden Master Testing** with real Runalyze HTML:
 
-1. **Fixtures** (`rd/testdata/fixtures/*.html`) - Real HTML from Runalyze
-2. **Golden Files** (`rd/testdata/golden/*.json`) - Expected parsing results
+1. **Fixtures** (`sw/testdata/fixtures/*.html`) - Real HTML from Runalyze
+2. **Golden Files** (`sw/testdata/golden/*.json`) - Expected parsing results
 3. **Tests** - Parse HTML → Compare to golden → Pass/Fail
+
+**Note**: Test fixtures and golden files are kept in version control to ensure consistent testing across different environments and to track changes in Runalyze's HTML structure over time.
 
 When Runalyze changes their HTML structure, tests fail with clear diffs showing exactly what changed.
 
@@ -175,7 +177,7 @@ Logging is controlled by the `LOG_LEVEL` environment variable:
 
 ### Interactive Mode
 - Beautiful TUI with colors, emojis, and progress bars
-- Structured logs written to `~/.runalyzedump/runalyzedump.log`
+- Structured logs written to `~/.syncwich/syncwich.log`
 
 ### JSON Mode (`--json` flag)
 - Only structured JSON logs output to stdout
@@ -186,27 +188,27 @@ Logging is controlled by the `LOG_LEVEL` environment variable:
 
 ```bash
 # Verbose interactive mode with beautiful TUI
-LOG_LEVEL=debug ./runalyzedump download --since 7d
+LOG_LEVEL=debug ./syncwich download --since 7d
 
 # Quiet interactive mode  
-LOG_LEVEL=error ./runalyzedump download
+LOG_LEVEL=error ./syncwich download
 
 # JSON mode for cron job
-LOG_LEVEL=info ./runalyzedump download --json --since 1d
+LOG_LEVEL=info ./syncwich download --json --since 1d
 ```
 
 ## Configuration
 
 Credentials can be provided via:
-- Environment variables (`RUNALYZE_USERNAME`, `RUNALYZE_PASSWORD`)
-- Config file (`~/.runalyzedump/runalyzedump.yaml`)
+- Environment variables (`SW_RUNALYZE_USERNAME`, `SW_RUNALYZE_PASSWORD`)
+- Config file (`~/.syncwich/syncwich.yaml`)
 
 Example config file:
 ```yaml
 username: your_username
 password: your_password
-# save_dir: ~/custom/path/to/activities  # Default: ~/.runalyzedump/activities
-# cookie_path: ~/custom/path/to/cookie.json  # Default: ~/.runalyzedump/runalyze-cookie.json
+# save_dir: ~/custom/path/to/activities  # Default: ~/.syncwich/activities
+# cookie_path: ~/custom/path/to/cookie.json  # Default: ~/.syncwich/runalyze-cookie.json
 ```
 
 ## Building

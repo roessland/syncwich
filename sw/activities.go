@@ -1,4 +1,4 @@
-package rd
+package sw
 
 // This file has been split into multiple focused files:
 // - activity_types.go: Activity type detection and emoji mapping

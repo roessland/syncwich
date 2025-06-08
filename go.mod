@@ -1,4 +1,4 @@
-module github.com/roessland/runalyzedump
+module github.com/roessland/syncwich
 
 go 1.23.5
 

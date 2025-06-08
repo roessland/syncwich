@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/mitchellh/go-homedir"
-	"github.com/roessland/runalyzedump/rd"
-	"github.com/roessland/runalyzedump/runalyze"
+	"github.com/roessland/syncwich/runalyze"
+	"github.com/roessland/syncwich/sw"
 	"github.com/spf13/viper"
 )
 
@@ -26,7 +26,7 @@ func main() {
 	password := viper.GetString("password")
 
 	if username == "" || password == "" {
-		log.Fatal("RUNALYZE_USERNAME and RUNALYZE_PASSWORD required (via config file or environment)")
+		log.Fatal("SW_RUNALYZE_USERNAME and SW_RUNALYZE_PASSWORD required (via config file or environment)")
 	}
 
 	// Create temporary cookie file for this session
@@ -42,7 +42,7 @@ func main() {
 		log.Fatalf("Failed to login: %v", err)
 	}
 
-	fixturesDir := filepath.Join("rd", "testdata", "fixtures")
+	fixturesDir := filepath.Join("sw", "testdata", "fixtures")
 	if err := os.MkdirAll(fixturesDir, 0755); err != nil {
 		log.Fatalf("Failed to create fixtures directory: %v", err)
 	}
@@ -73,7 +73,7 @@ func main() {
 		}
 
 		// Count activities in this week
-		activityCount := len(rd.FindActivityIds(html))
+		activityCount := len(sw.FindActivityIds(html))
 		fmt.Printf("  Found %d activities\n", activityCount)
 
 		if activityCount >= 2 {
@@ -115,7 +115,7 @@ func initConfig() {
 		return
 	}
 
-	configPath := filepath.Join(home, ".runalyzedump", "runalyzedump.yaml")
+	configPath := filepath.Join(home, ".syncwich", "syncwich.yaml")
 	if _, err := os.Stat(configPath); err == nil {
 		viper.SetConfigFile(configPath)
 		if err := viper.ReadInConfig(); err != nil {
@@ -124,6 +124,6 @@ func initConfig() {
 	}
 
 	// Also check environment variables
-	viper.BindEnv("username", "RUNALYZE_USERNAME")
-	viper.BindEnv("password", "RUNALYZE_PASSWORD")
+	viper.BindEnv("username", "SW_RUNALYZE_USERNAME")
+	viper.BindEnv("password", "SW_RUNALYZE_PASSWORD")
 }

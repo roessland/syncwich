@@ -161,7 +161,7 @@ func getLogFilePath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".runalyzedump", "runalyzedump.log"), nil
+	return filepath.Join(home, ".syncwich", "syncwich.log"), nil
 }
 
 // WeekHeader shows a week range header

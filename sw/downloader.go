@@ -1,4 +1,4 @@
-package rd
+package sw
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/mitchellh/go-homedir"
-	"github.com/roessland/runalyzedump/pkg/output"
-	"github.com/roessland/runalyzedump/runalyze"
+	"github.com/roessland/syncwich/pkg/output"
+	"github.com/roessland/syncwich/runalyze"
 )
 
 // DownloadConfig holds all configuration needed for downloading activities

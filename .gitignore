@@ -4,7 +4,7 @@
 *.dll
 *.so
 *.dylib
-runalyzedump
+syncwich
 
 # Test binary, built with `go test -c`
 *.test
@@ -18,8 +18,25 @@ runalyzedump
 # Go workspace file
 go.work
 
-# Project specific
+# Config files with sensitive information
 config.yaml
+*.yaml
+!example.config.yaml
+
+# Coverage reports
+coverage.html
+coverage.out
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific
 *cookie*.json
 activities/
 

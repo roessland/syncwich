@@ -1,6 +1,6 @@
 package main
 
-import "github.com/roessland/runalyzedump/cmd"
+import "github.com/roessland/syncwich/cmd"
 
 func main() {
 	cmd.Execute()

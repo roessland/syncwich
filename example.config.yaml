@@ -1,17 +1,17 @@
-# Example configuration file for Runalyze CLI
-# Copy this file to ~/.runalyzedump/runalyzedump.yaml and update with your values
+# Example configuration file for Syncwich CLI
+# Copy this file to ~/.syncwich/syncwich.yaml and update with your values
 
 # Your Runalyze account credentials
 username: "your_username"  # Replace with your Runalyze username
 password: "your_password"  # Replace with your Runalyze password
 
 # Path to store authentication cookies
-# Default: ~/.runalyzedump/runalyze-cookie.json
+# Default: ~/.syncwich/runalyze-cookie.json
 # cookie_path: "~/path/to/cookie.json"
 
 # Directory where activities will be saved
-# Default: ~/.runalyzedump/activities
+# Default: ~/.syncwich/activities
 # save_dir: "~/path/to/activities"
 
-# Logs go to ~/.runalyzedump/runalyzedump.log in interactive mode
+# Logs go to ~/.syncwich/syncwich.log in interactive mode
 # Use --json flag for JSON output to stdout (for systemd/cron jobs) 

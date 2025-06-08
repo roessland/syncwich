@@ -63,8 +63,8 @@ The `update-fixtures.go` script:
 ## Credentials
 
 The script uses credentials from:
-1. `~/.runalyzedump/runalyzedump.yaml` (if exists)
-2. Environment variables `RUNALYZE_USERNAME` and `RUNALYZE_PASSWORD`
+1. `~/.syncwich/syncwich.yaml` (if exists)
+2. Environment variables `SW_RUNALYZE_USERNAME` and `SW_RUNALYZE_PASSWORD`
 
 ## Benefits
 

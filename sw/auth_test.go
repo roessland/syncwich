@@ -1,11 +1,11 @@
-package rd
+package sw
 
 import (
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/roessland/runalyzedump/runalyze"
+	"github.com/roessland/syncwich/runalyze"
 )
 
 func TestAuthService_EnsureAuthenticated_AlreadyLoggedIn(t *testing.T) {

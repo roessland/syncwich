@@ -1,4 +1,4 @@
-package rd
+package sw
 
 import (
 	"regexp"
@@ -78,14 +78,24 @@ func (d *ActivityTypeDetector) DetectActivityType(activityType string, fallbackH
 func (d *ActivityTypeDetector) detectFromHTML(htmlContent string) string {
 	content := strings.ToLower(htmlContent)
 
-	// Search for keywords in order of specificity
+	// Find the earliest matching keyword by position in the text
+	earliestPosition := len(content) + 1
+	var matchedEmoji string
+
 	for emoji, keywords := range d.keywords {
 		for _, keyword := range keywords {
 			keywordPattern := regexp.MustCompile(`\b` + regexp.QuoteMeta(keyword) + `\b`)
-			if keywordPattern.MatchString(content) {
-				return emoji
+			if match := keywordPattern.FindStringIndex(content); match != nil {
+				if match[0] < earliestPosition {
+					earliestPosition = match[0]
+					matchedEmoji = emoji
+				}
 			}
 		}
+	}
+
+	if matchedEmoji != "" {
+		return matchedEmoji
 	}
 
 	// Default if no keywords match

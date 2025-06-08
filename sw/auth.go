@@ -1,10 +1,10 @@
-package rd
+package sw
 
 import (
 	"errors"
 	"time"
 
-	"github.com/roessland/runalyzedump/runalyze"
+	"github.com/roessland/syncwich/runalyze"
 )
 
 // AuthService handles authentication and session management

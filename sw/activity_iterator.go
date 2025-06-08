@@ -1,10 +1,10 @@
-package rd
+package sw
 
 import (
 	"context"
 	"time"
 
-	"github.com/roessland/runalyzedump/runalyze"
+	"github.com/roessland/syncwich/runalyze"
 )
 
 // ActivityIterator is an iterator that yields activity information from Runalyze
