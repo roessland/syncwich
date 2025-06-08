@@ -297,9 +297,10 @@ func (ol *OutputLogger) UpdateActivityLineMulti(area *pterm.AreaPrinter, emoji, 
 	// Update the area with new content
 	area.Update(line)
 
-	// If download is complete or error, stop the area printer
+	// If download is complete or error, stop the area printer and add newline
 	if multiFileInfo.Primary.State == StateDownloaded || multiFileInfo.Primary.State == StateError || multiFileInfo.Primary.State == StateNotAvailable {
 		area.Stop()
+		pterm.Println() // Add newline after stopping area printer
 	}
 }
 
