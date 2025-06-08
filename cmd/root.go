@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/roessland/runalyzedump/pkg/output"
 	"github.com/roessland/runalyzedump/rd"
 	"github.com/roessland/runalyzedump/runalyze"
 	"github.com/spf13/cobra"
@@ -23,6 +24,7 @@ var (
 	cfgFile    string
 	untilStr   string
 	sinceStr   string
+	jsonMode   bool
 )
 
 // parseUntilDate parses a date string in YYYY-MM-DD, YYYY-MM, or YYYY format and returns the next Monday
@@ -98,66 +100,209 @@ func parseDuration(durationStr string) (time.Duration, error) {
 
 // parseSinceDate parses a --since parameter which can be either:
 // - A date string (YYYY-MM-DD, YYYY-MM, or YYYY format)
-// - A duration string (30d, 2w, 1y, 6m)
-func parseSinceDate(sinceStr string) (time.Time, error) {
+// - A duration string (30d, 2w, 1y, 6m) - relative to the until date
+func parseSinceDate(sinceStr string, untilDate time.Time) (time.Time, error) {
 	// First, try to parse as a duration
 	if duration, err := parseDuration(sinceStr); err == nil {
-		// Calculate the date by subtracting the duration from now
-		return time.Now().Add(-duration), nil
+		// Calculate the date by subtracting the duration from the until date
+		return untilDate.Add(-duration), nil
 	}
 
 	// If not a duration, try to parse as a date using the existing logic
 	return parseUntilDate(sinceStr)
 }
 
-// downloadActivityFile downloads an activity file (FIT or TCX) for the given activity ID
-func downloadActivityFile(client *runalyze.Client, activityID string, saveDir string) error {
-	fitPath := filepath.Join(saveDir, activityID+".fit")
-	tcxPath := filepath.Join(saveDir, activityID+".tcx")
+// validateAndParseDates validates and parses the until and since date parameters early
+func validateAndParseDates(untilStr, sinceStr string) (since, until time.Time, err error) {
+	// Parse until date
+	if untilStr != "" {
+		until, err = parseUntilDate(untilStr)
+		if err != nil {
+			return time.Time{}, time.Time{}, fmt.Errorf("failed to parse until date: %w", err)
+		}
+	} else {
+		// Default to current time, transformed to next Monday
+		until = time.Now()
+		daysUntilMonday := (8 - int(until.Weekday())) % 7
+		until = until.AddDate(0, 0, daysUntilMonday)
+		until = time.Date(until.Year(), until.Month(), until.Day(), 0, 0, 0, 0, until.Location())
+	}
+
+	// Parse since date (relative to until date)
+	if sinceStr != "" {
+		since, err = parseSinceDate(sinceStr, until)
+		if err != nil {
+			return time.Time{}, time.Time{}, fmt.Errorf("failed to parse since date: %w", err)
+		}
+	} else {
+		// Default to 4 weeks before the until date
+		defaultDuration, _ := parseDuration("4w")
+		since = until.Add(-defaultDuration)
+	}
+
+	// Validate that since is before until
+	if since.After(until) || since.Equal(until) {
+		return time.Time{}, time.Time{}, fmt.Errorf("--since date (%s) must be before --until date (%s)", since.Format("2006-01-02"), until.Format("2006-01-02"))
+	}
+
+	return since, until, nil
+}
+
+// downloadActivityFile downloads an activity file (FIT or TCX) for the given activity info
+func downloadActivityFile(client *runalyze.Client, activity rd.ActivityInfo, saveDir string, ol *output.OutputLogger) error {
+	fitPath := filepath.Join(saveDir, activity.ID+".fit")
+	tcxPath := filepath.Join(saveDir, activity.ID+".tcx")
 
 	// Check if either file already exists
 	if _, err := os.Stat(fitPath); err == nil {
-		fmt.Printf("FIT file already exists: %s\n", fitPath)
+		// File exists - show completed line
+		ol.ActivityLine(activity.TypeEmoji, activity.ID, output.FileInfo{
+			Type:  "FIT",
+			State: output.StateExists,
+		})
 		return nil
 	}
 	if _, err := os.Stat(tcxPath); err == nil {
-		fmt.Printf("TCX file already exists: %s\n", tcxPath)
+		// File exists - show completed line
+		ol.ActivityLine(activity.TypeEmoji, activity.ID, output.FileInfo{
+			Type:  "TCX",
+			State: output.StateExists,
+		})
 		return nil
 	}
 
+	// Start with FIT download - create one area printer for this activity
+	area := ol.ActivityLine(activity.TypeEmoji, activity.ID, output.FileInfo{
+		Type:     "FIT",
+		State:    output.StateDownloading,
+		Progress: 0,
+	})
+
+	// Update progress to 50% (simulating headers received)
+	if area != nil {
+		ol.UpdateActivityLine(area, activity.TypeEmoji, activity.ID, output.FileInfo{
+			Type:     "FIT",
+			State:    output.StateDownloading,
+			Progress: 50,
+		})
+	}
+
 	// Try to download FIT file first
-	fitData, _, err := client.GetFit(activityID)
+	fitData, _, err := client.GetFit(activity.ID)
 	if err != nil {
 		// Check if it's a 404 error by looking at the error message or HTTP status
 		if isNotFoundError(err) {
-			fmt.Printf("FIT file not available for activity %s, trying TCX...\n", activityID)
+			// FIT failed, try TCX - update to show TCX attempt while remembering FIT failure
+			if area != nil {
+				ol.UpdateActivityLine(area, activity.TypeEmoji, activity.ID, output.FileInfo{
+					Type:     "TCX",
+					State:    output.StateDownloading,
+					Progress: 0,
+				})
+			}
+
+			// Update progress to 50% for TCX
+			if area != nil {
+				ol.UpdateActivityLine(area, activity.TypeEmoji, activity.ID, output.FileInfo{
+					Type:     "TCX",
+					State:    output.StateDownloading,
+					Progress: 50,
+				})
+			}
 
 			// Try to download TCX file
-			tcxData, _, err := client.GetTcx(activityID)
+			tcxData, _, err := client.GetTcx(activity.ID)
 			if err != nil {
 				if isNotFoundError(err) {
-					fmt.Printf("Neither FIT nor TCX file available for activity %s: https://runalyze.com/activity/%s\n", activityID, activityID)
+					// Neither available - show both failed attempts
+					if area != nil {
+						ol.UpdateActivityLineMulti(area, activity.TypeEmoji, activity.ID, output.MultiFileInfo{
+							Primary:   output.FileInfo{Type: "TCX", State: output.StateNotAvailable},
+							Secondary: &output.FileInfo{Type: "FIT", State: output.StateNotAvailable},
+						})
+					}
 					return nil // Continue to next activity
 				}
-				return fmt.Errorf("failed to download TCX file for activity %s: %w", activityID, err)
+				// Other error - show FIT not available, TCX error
+				if area != nil {
+					ol.UpdateActivityLineMulti(area, activity.TypeEmoji, activity.ID, output.MultiFileInfo{
+						Primary:   output.FileInfo{Type: "TCX", State: output.StateError},
+						Secondary: &output.FileInfo{Type: "FIT", State: output.StateNotAvailable},
+					})
+				}
+				return fmt.Errorf("failed to download TCX file for activity %s: %w", activity.ID, err)
+			}
+
+			// Update progress to 100% for TCX
+			if area != nil {
+				ol.UpdateActivityLine(area, activity.TypeEmoji, activity.ID, output.FileInfo{
+					Type:     "TCX",
+					State:    output.StateDownloading,
+					Progress: 100,
+				})
 			}
 
 			// Save TCX file
 			if err := os.WriteFile(tcxPath, tcxData, 0644); err != nil {
-				return fmt.Errorf("failed to save TCX file for activity %s: %w", activityID, err)
+				if area != nil {
+					ol.UpdateActivityLineMulti(area, activity.TypeEmoji, activity.ID, output.MultiFileInfo{
+						Primary:   output.FileInfo{Type: "TCX", State: output.StateError},
+						Secondary: &output.FileInfo{Type: "FIT", State: output.StateNotAvailable},
+					})
+				}
+				return fmt.Errorf("failed to save TCX file for activity %s: %w", activity.ID, err)
 			}
-			fmt.Printf("Saved TCX file: %s\n", tcxPath)
+
+			// Mark TCX as downloaded - show both FIT (not available) and TCX (downloaded)
+			if area != nil {
+				ol.UpdateActivityLineMulti(area, activity.TypeEmoji, activity.ID, output.MultiFileInfo{
+					Primary:   output.FileInfo{Type: "TCX", State: output.StateDownloaded},
+					Secondary: &output.FileInfo{Type: "FIT", State: output.StateNotAvailable},
+				})
+			}
+
 			time.Sleep(300 * time.Millisecond)
 			return nil
 		}
-		return fmt.Errorf("failed to download FIT file for activity %s: %w", activityID, err)
+
+		// Other FIT error - update same line to show error
+		if area != nil {
+			ol.UpdateActivityLine(area, activity.TypeEmoji, activity.ID, output.FileInfo{
+				Type:  "FIT",
+				State: output.StateError,
+			})
+		}
+		return fmt.Errorf("failed to download FIT file for activity %s: %w", activity.ID, err)
+	}
+
+	// FIT download successful - update to 100%
+	if area != nil {
+		ol.UpdateActivityLine(area, activity.TypeEmoji, activity.ID, output.FileInfo{
+			Type:     "FIT",
+			State:    output.StateDownloading,
+			Progress: 100,
+		})
 	}
 
 	// Save FIT file
 	if err := os.WriteFile(fitPath, fitData, 0644); err != nil {
-		return fmt.Errorf("failed to save FIT file for activity %s: %w", activityID, err)
+		if area != nil {
+			ol.UpdateActivityLine(area, activity.TypeEmoji, activity.ID, output.FileInfo{
+				Type:  "FIT",
+				State: output.StateError,
+			})
+		}
+		return fmt.Errorf("failed to save FIT file for activity %s: %w", activity.ID, err)
 	}
-	fmt.Printf("Saved FIT file: %s\n", fitPath)
+
+	// Mark FIT as downloaded - update same line
+	if area != nil {
+		ol.UpdateActivityLine(area, activity.TypeEmoji, activity.ID, output.FileInfo{
+			Type:  "FIT",
+			State: output.StateDownloaded,
+		})
+	}
+
 	time.Sleep(300 * time.Millisecond)
 	return nil
 }
@@ -182,6 +327,21 @@ var downloadCmd = &cobra.Command{
 	Short: "Download activities from Runalyze",
 	Long:  `Download activities from Runalyze and save them as FIT or TCX files.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Validate dates first, before any other operations
+		since, until, err := validateAndParseDates(untilStr, sinceStr)
+		if err != nil {
+			return err // Return error directly for early validation
+		}
+
+		// Create output/logger system
+		ol, err := output.New(jsonMode)
+		if err != nil {
+			return fmt.Errorf("failed to create output system: %w", err)
+		}
+
+		// Create component-specific logger
+		logger := ol.Component("download")
+
 		// Check for credentials
 		if username == "" {
 			username = viper.GetString("username")
@@ -194,6 +354,8 @@ var downloadCmd = &cobra.Command{
 			return fmt.Errorf("username and password must be provided via config file, environment variables, or command line flags")
 		}
 
+		logger.Info("starting download process", "username", username)
+
 		// Set up cookie path with new default
 		if cookiePath == "" {
 			cookiePath = viper.GetString("cookie_path")
@@ -202,71 +364,55 @@ var downloadCmd = &cobra.Command{
 		// Create client
 		client, err := runalyze.New(username, password, cookiePath)
 		if err != nil {
-			return fmt.Errorf("failed to create client: %w", err)
+			ol.LogAndShowError(err, "Failed to create Runalyze client")
+			return err
 		}
 
 		// Try to get data to verify login
+		ol.Progress("Verifying login credentials...")
+		logger.Debug("attempting to verify login")
+
 		_, err = client.GetDataBrowser(time.Now())
 		if err != nil {
 			// If we got redirected to login, try to login and retry
 			if errors.Is(err, runalyze.ErrRedirectedToLogin) {
+				ol.Progress("Logging in to Runalyze...")
+				logger.Info("attempting login")
+
 				if err := client.Login(); err != nil {
-					return fmt.Errorf("failed to login: %w", err)
+					ol.LogAndShowError(err, "Failed to login to Runalyze")
+					return err
 				}
 				// Retry getting data after successful login
 				_, err = client.GetDataBrowser(time.Now())
 				if err != nil {
-					return fmt.Errorf("failed to get data after login: %w", err)
+					ol.LogAndShowError(err, "Failed to verify login after authentication")
+					return err
 				}
 				// Persist cookies immediately after successful login verification
 				if err := client.PersistCookies(); err != nil {
-					return fmt.Errorf("failed to persist cookies after login: %w", err)
+					logger.Warn("failed to persist cookies", "error", err)
 				}
+				ol.Status("Successfully logged in to Runalyze")
 			} else {
-				return fmt.Errorf("failed to get data: %w", err)
+				ol.LogAndShowError(err, "Failed to verify Runalyze connection")
+				return err
 			}
 		} else {
 			// Persist cookies immediately after successful verification with existing cookies
+			ol.Status("Using existing Runalyze session")
 			if err := client.PersistCookies(); err != nil {
-				return fmt.Errorf("failed to persist cookies: %w", err)
+				logger.Warn("failed to persist cookies", "error", err)
 			}
 		}
 
-		// Parse until date
-		var until time.Time
-		if untilStr != "" {
-			until, err = parseUntilDate(untilStr)
-			if err != nil {
-				return fmt.Errorf("failed to parse until date: %w", err)
-			}
-		} else {
-			// Default to current time, transformed to next Monday
-			until = time.Now()
-			daysUntilMonday := (8 - int(until.Weekday())) % 7
-			until = until.AddDate(0, 0, daysUntilMonday)
-			until = time.Date(until.Year(), until.Month(), until.Day(), 0, 0, 0, 0, until.Location())
-		}
-
-		// Parse since date
-		var since time.Time
-		if sinceStr != "" {
-			since, err = parseSinceDate(sinceStr)
-			if err != nil {
-				return fmt.Errorf("failed to parse since date: %w", err)
-			}
-		} else {
-			// Default to 4 weeks before the until date
-			defaultDuration, _ := parseDuration("4w")
-			since = until.Add(-defaultDuration)
-		}
-
-		// Validate that since is before until
-		if since.After(until) || since.Equal(until) {
-			return fmt.Errorf("--since date (%s) must be before --until date (%s)", since.Format("2006-01-02"), until.Format("2006-01-02"))
-		}
+		logger.Info("download configuration",
+			"since", since.Format("2006-01-02"),
+			"until", until.Format("2006-01-02"))
 
 		// Create an iterator starting from the specified Monday
 		iter := rd.NewActivityIteratorWithSince(client, until, since)
+		iter.SetLogger(logger)
 
 		// Get save directory from config
 		saveDir := viper.GetString("save_dir")
@@ -274,26 +420,61 @@ var downloadCmd = &cobra.Command{
 		// Expand save directory path
 		expandedSaveDir, err := homedir.Expand(saveDir)
 		if err != nil {
-			return fmt.Errorf("failed to expand save directory path: %w", err)
+			ol.LogAndShowError(err, "Failed to expand save directory path")
+			return err
 		}
 
 		// Create save directory if it doesn't exist
 		if err := os.MkdirAll(expandedSaveDir, 0755); err != nil {
-			return fmt.Errorf("failed to create save directory: %w", err)
+			ol.LogAndShowError(err, "Failed to create save directory: %s", expandedSaveDir)
+			return err
 		}
 
-		fmt.Printf("Downloading activities from %s to %s\n", since.Format("2006-01-02"), until.Format("2006-01-02"))
+		ol.Status("Downloading activities from %s to %s", since.Format("2006-01-02"), until.Format("2006-01-02"))
+
+		// Track counts for final summary
+		var downloadedCount, errorCount int
+		var currentWeekStart time.Time
 
 		// Iterate through activities
-		for activityID, ok := iter.Next(); ok; activityID, ok = iter.Next() {
-			fmt.Printf("Found activity: %s\n", activityID)
+		for activity, ok := iter.Next(); ok; activity, ok = iter.Next() {
+			// Show week header when we encounter a new week
+			if activity.WeekStart != currentWeekStart {
+				currentWeekStart = activity.WeekStart
+				ol.WeekHeader(activity.WeekStart, activity.WeekEnd)
+			}
+
+			logger.Debug("processing activity", "activity_id", activity.ID, "type", activity.Type)
 
 			// Download activity file
-			if err := downloadActivityFile(client, activityID, expandedSaveDir); err != nil {
-				fmt.Printf("Error downloading activity %s: %v\n", activityID, err)
+			if err := downloadActivityFile(client, activity, expandedSaveDir, ol); err != nil {
+				ol.LogAndShowError(err, "Error downloading activity %s", activity.ID)
+				errorCount++
 				continue
 			}
+			downloadedCount++
 		}
+
+		// Show final results
+		ol.Result("Download complete: %d processed, %d errors", downloadedCount, errorCount)
+
+		// Output structured results for JSON mode
+		if jsonMode {
+			ol.JSON(map[string]any{
+				"summary": map[string]int{
+					"processed": downloadedCount,
+					"errors":    errorCount,
+				},
+				"date_range": map[string]string{
+					"since": since.Format("2006-01-02"),
+					"until": until.Format("2006-01-02"),
+				},
+			})
+		}
+
+		logger.Info("download completed",
+			"processed", downloadedCount,
+			"errors", errorCount)
 
 		return nil
 	},
@@ -324,6 +505,7 @@ func init() {
 	downloadCmd.Flags().StringVar(&cookiePath, "cookie-path", "", "Path to cookie file (default: ~/.runalyzedump/runalyze-cookie.json)")
 	downloadCmd.Flags().StringVar(&untilStr, "until", "", "Date to start from (YYYY-MM-DD, YYYY-MM, or YYYY format).")
 	downloadCmd.Flags().StringVar(&sinceStr, "since", "", "Date to stop at (YYYY-MM-DD, YYYY-MM, YYYY format) or duration ago (e.g., 30d, 2w, 1y, 6m). Default: 4w")
+	downloadCmd.Flags().BoolVar(&jsonMode, "json", false, "Output structured JSON logs to stdout (for cron/systemd)")
 
 	// Bind flags to environment variables
 	viper.BindEnv("username", "RUNALYZE_USERNAME")
@@ -356,8 +538,6 @@ func initConfig() {
 
 	viper.AutomaticEnv() // read in environment variables that match
 
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
-	}
+	// If a config file is found, read it in silently (logging is via LOG_LEVEL env var)
+	viper.ReadInConfig()
 }
