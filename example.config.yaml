@@ -1,5 +1,5 @@
 # Example configuration file for Runalyze CLI
-# Copy this file to config.yaml and update with your values
+# Copy this file to ~/.runalyzedump/runalyzedump.yaml and update with your values
 
 # Your Runalyze account credentials
 username: "your_username"  # Replace with your Runalyze username
@@ -13,12 +13,5 @@ password: "your_password"  # Replace with your Runalyze password
 # Default: ~/.runalyzedump/activities
 # save_dir: "~/path/to/activities"
 
-# Logging is controlled by the LOG_LEVEL environment variable:
-# LOG_LEVEL=trace   - Most verbose (includes HTTP request/response details)
-# LOG_LEVEL=debug   - Default, includes debug information
-# LOG_LEVEL=info    - Normal operation messages
-# LOG_LEVEL=warn    - Warnings only
-# LOG_LEVEL=error   - Errors only
-#
 # Logs go to ~/.runalyzedump/runalyzedump.log in interactive mode
 # Use --json flag for JSON output to stdout (for systemd/cron jobs) 

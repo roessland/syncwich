@@ -252,7 +252,7 @@ func (it *ActivityIterator) fetchActivitiesForWeek() error {
 		}
 
 		// Fallback to old regex method
-		ids := findActivityIdsRegex(data)
+		ids := FindActivityIds(data)
 		activities = make([]ActivityInfo, len(ids))
 		for i, id := range ids {
 			activities[i] = ActivityInfo{
@@ -274,8 +274,8 @@ func (it *ActivityIterator) fetchActivitiesForWeek() error {
 	return nil
 }
 
-// findActivityIdsRegex is the old regex-based fallback method
-func findActivityIdsRegex(htmlContent []byte) []string {
+// FindActivityIds is the regex-based method for extracting activity IDs from HTML
+func FindActivityIds(htmlContent []byte) []string {
 	re := regexp.MustCompile(`id="training_(\d+)"`)
 	matches := re.FindAllStringSubmatch(string(htmlContent), -1)
 	ids := make([]string, len(matches))

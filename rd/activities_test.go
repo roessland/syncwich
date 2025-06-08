@@ -75,7 +75,7 @@ func TestFindActivityIds(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := findActivityIds([]byte(tt.html))
+			got := FindActivityIds([]byte(tt.html))
 			if len(got) != len(tt.expected) {
 				t.Errorf("findActivityIds() returned %d IDs, want %d", len(got), len(tt.expected))
 				return

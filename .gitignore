@@ -20,7 +20,7 @@ go.work
 
 # Project specific
 config.yaml
-*.json
+*cookie*.json
 activities/
 
 # IDE specific files

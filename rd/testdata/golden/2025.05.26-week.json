@@ -1,0 +1,44 @@
+[
+  {
+    "ID": "135061341",
+    "Type": "fa fa-fw vo2max-icon small fa-arrow-right",
+    "TypeEmoji": "🏃",
+    "WeekStart": "2025-05-26T00:00:00Z",
+    "WeekEnd": "2025-06-01T00:00:00Z"
+  },
+  {
+    "ID": "135061340",
+    "Type": "icons8-Regular-Biking",
+    "TypeEmoji": "🚴",
+    "WeekStart": "2025-05-26T00:00:00Z",
+    "WeekEnd": "2025-06-01T00:00:00Z"
+  },
+  {
+    "ID": "135433131",
+    "Type": "fa fa-fw vo2max-icon small fa-arrow-down unimportant",
+    "TypeEmoji": "🏃",
+    "WeekStart": "2025-05-26T00:00:00Z",
+    "WeekEnd": "2025-06-01T00:00:00Z"
+  },
+  {
+    "ID": "135436577",
+    "Type": "icons8-Regular-Biking",
+    "TypeEmoji": "🚴",
+    "WeekStart": "2025-05-26T00:00:00Z",
+    "WeekEnd": "2025-06-01T00:00:00Z"
+  },
+  {
+    "ID": "135657751",
+    "Type": "fa fa-fw vo2max-icon small fa-arrow-up  fa-rotate-45",
+    "TypeEmoji": "🏃",
+    "WeekStart": "2025-05-26T00:00:00Z",
+    "WeekEnd": "2025-06-01T00:00:00Z"
+  },
+  {
+    "ID": "135657754",
+    "Type": "icons8-Regular-Biking",
+    "TypeEmoji": "🚴",
+    "WeekStart": "2025-05-26T00:00:00Z",
+    "WeekEnd": "2025-06-01T00:00:00Z"
+  }
+]

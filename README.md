@@ -82,6 +82,87 @@ The tool automatically detects activity types from Runalyze's HTML and shows app
   - Green background: Successfully downloaded
   - Red background: Download error
 
+## Development & Testing
+
+This project uses a robust fixture-based testing system that ensures HTML parsing works correctly even when Runalyze updates their website structure.
+
+### Quick Start for Testing
+
+```bash
+# Install just (task runner)
+brew install just  # macOS
+# or: cargo install just
+
+# Run all tests
+just test
+
+# Run only HTML parsing tests (fast)
+just test-fixtures
+
+# Show test coverage
+just show-coverage
+```
+
+### Testing System Overview
+
+The testing system uses **Golden Master Testing** with real Runalyze HTML:
+
+1. **Fixtures** (`rd/testdata/fixtures/*.html`) - Real HTML from Runalyze
+2. **Golden Files** (`rd/testdata/golden/*.json`) - Expected parsing results
+3. **Tests** - Parse HTML → Compare to golden → Pass/Fail
+
+When Runalyze changes their HTML structure, tests fail with clear diffs showing exactly what changed.
+
+### Available Commands
+
+```bash
+# Test commands
+just test              # Run all tests
+just test-fixtures     # Run only fixture-based tests (fast)
+just test-coverage     # Run tests with coverage report
+
+# Fixture management
+just update-fixtures   # Fetch fresh HTML from Runalyze (requires credentials)
+just update-golden     # Approve parsing changes (after reviewing diffs)
+just test-update       # Full update cycle: fixtures → golden → test
+
+# Utilities
+just show-coverage     # Display test coverage by file
+just help-broken-tests # Instructions for when Runalyze breaks
+just clean            # Clean up test artifacts
+```
+
+### When Runalyze Changes (Breaks Tests)
+
+When Runalyze updates their HTML structure, tests will fail. Here's how to fix them:
+
+```bash
+# 1. Update fixtures with fresh HTML
+just update-fixtures
+
+# 2. Run tests to see what parsing results changed
+just test-fixtures
+
+# 3. Review the diffs - if changes look correct, approve them
+just update-golden
+
+# 4. Verify tests pass
+just test-fixtures
+```
+
+The fixture system automatically finds weeks with 2+ activities from your recent Runalyze data, so you don't need to manually specify dates.
+
+### Test Coverage
+
+Current test coverage focuses on the most critical parsing functions:
+
+- **activities.go**: Core HTML parsing logic (highest priority)
+- **auth.go**: Authentication handling
+- **dates.go**: Date parsing and formatting
+- **download_service.go**: Download orchestration
+
+Run `just show-coverage` to see current coverage by file.
+
 ## Logging
 
 Logging is controlled by the `LOG_LEVEL` environment variable:
