@@ -26,12 +26,16 @@ func getActivityTypeEmoji(activityType string, fallbackHTML string) string {
 	// First, try icon-based detection
 	runningPattern := regexp.MustCompile(`icon.{0,3}running`)
 	bikingPattern := regexp.MustCompile(`regular.biking`)
+	sportsPattern := regexp.MustCompile(`sports-mode`)
 
 	if runningPattern.MatchString(activityType) {
 		return "🏃"
 	}
 	if bikingPattern.MatchString(activityType) {
 		return "🚴"
+	}
+	if sportsPattern.MatchString(activityType) {
+		return "🤸" // Generic sports person for Runalyze's fallback sports mode
 	}
 
 	// Check for other common activity types in icon class

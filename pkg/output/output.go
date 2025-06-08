@@ -171,8 +171,8 @@ func (ol *OutputLogger) WeekHeader(startDate, endDate time.Time) {
 	} else {
 		// Add a newline before the week header for proper spacing
 		pterm.Println()
-		headerText := fmt.Sprintf("Week from %s to %s", startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
-		pterm.DefaultBox.WithTitle("GET").WithTitleTopCenter().Println(headerText)
+		headerText := fmt.Sprintf("📅 Week from %s to %s", startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+		pterm.Info.Println(headerText)
 	}
 }
 
@@ -326,7 +326,7 @@ func (ol *OutputLogger) Result(format string, args ...any) {
 	if ol.jsonMode {
 		ol.Logger.Info("result", "message", fmt.Sprintf(format, args...))
 	} else {
-		pterm.DefaultBox.WithTitle("Summary").WithTitleTopCenter().Printf(format+"\n", args...)
+		pterm.Success.Printf("🎯 "+format+"\n", args...)
 	}
 }
 
