@@ -59,6 +59,6 @@ help-broken-tests:
 
 # Clean up test artifacts
 clean:
-    rm -f coverage.out coverage.html
+    rm -f coverage.out coverage.html syncwich
     rm -rf sw/testdata/fixtures/*
     rm -rf sw/testdata/golden/* 
