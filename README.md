@@ -14,39 +14,58 @@ Copy `example.config.yaml` to `~/.syncwich/syncwich.yaml` and update with your R
 
 ## Usage
 
+### Basic Commands
+
+```bash
+# Show help and available commands
+syncwich --help
+
+# Download last 4 weeks of activities (default)
+syncwich download
+
+# Download specific date range
+syncwich download --since 2023-12-01 --until 2023-12-31
+
+# Download last 30 days  
+syncwich download --since 30d
+
+# Download last 4 weeks
+syncwich download --since 4w
+
+# Custom save directory
+syncwich download --save_dir ~/my-activities
+
+# Use custom config file
+syncwich --config ~/my-config.yaml download
+```
+
 ### Interactive Mode (Beautiful TUI)
 
-The tool now features a beautiful terminal interface with:
+The tool features a beautiful terminal interface with:
 - 🎨 **Color-coded file types** (FIT/TCX with background colors)
-- 📊 **Real-time progress bars** for downloads
+- 📊 **Real-time progress indicators**
 - 🏃 **Activity type emojis** (running, biking, swimming, etc.)
-- 📦 **Organized by week** with clear section headers
+- 📅 **Organized by week** with clear section headers
 
 Example output:
 ```
-┌─ GET ────────────────────────────────────────┐
-│              Week from 2024-12-01 to 2024-12-07              │
-└──────────────────────────────────────────────┘
+ INFO  Verifying login credentials...
+ SUCCESS  Successfully authenticated with Runalyze
+ SUCCESS  Downloading activities from 2025-05-12 to 2025-06-09
 
+ INFO  📅 Week from 2025-05-26 to 2025-06-01
 🏃 135061341 FIT ✅ Already downloaded
-🚴 135061342 FIT Downloading... 50%
-🏊 135061343 TCX ✅ Downloaded
-❓ 135061344 FIT ❌ Error
+🚴 135061340 FIT ✅ Already downloaded
+🏃 135433131 FIT ✅ Already downloaded
+🚴 135436577 FIT ✅ Already downloaded
 
-┌─ Summary ────────────────────────────────────┐
-│              Download complete: 15 processed, 1 errors              │
-└──────────────────────────────────────────────┘
-```
+ INFO  📅 Week from 2025-05-19 to 2025-05-25
+🏃 134552770 FIT ✅ Already downloaded
+🚴 134874143 FIT ✅ Already downloaded
+🤸 134115839 FIT ✅ Already downloaded
+🧗 134145023 FIT ✅ Already downloaded
 
-```bash
-# Download last 4 weeks of activities (default)
-./syncwich download
-
-# Download specific date range
-./syncwich download --since 2023-12-01 --until 2023-12-31
-
-# Download last 30 days
-./syncwich download --since 30d
+ SUCCESS  🎯 Download complete: 16 processed, 0 errors
 ```
 
 ### JSON Mode (for automation/cron jobs)
@@ -58,6 +77,13 @@ Example output:
 # Use with systemd service or cron job
 ./syncwich download --json | systemd-cat -t syncwich
 ```
+
+## ⚠️ Disclaimer
+
+> [!WARNING]
+> **This entire project is vibe-coded with an LLM and should not be trusted for anything critical.**
+> 
+> While it works for casual data backup and analysis, the code may contain bugs, security issues, or unexpected behavior. Use at your own risk and always verify important data manually.
 
 ## Activity Type Detection
 
