@@ -1,4 +1,4 @@
-# Syncwich
+![Syncwich Logo](.github/logo.png)
 
 A tool to sync and dump Runalyze data for analysis and backup purposes.
 
