@@ -10,7 +10,17 @@ go build -o syncwich
 
 ## Configuration
 
-Copy `example.config.yaml` to `~/.syncwich/syncwich.yaml` and update with your Runalyze credentials.
+```bash
+mkdir -p ~/.syncwich
+cp syncwich.yaml.example ~/.syncwich/syncwich.yaml
+```
+
+Edit `~/.syncwich/syncwich.yaml` and set your Runalyze credentials:
+
+```yaml
+username: "your_runalyze_username"
+password: "your_runalyze_password"
+```
 
 ## Usage
 

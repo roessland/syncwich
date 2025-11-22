@@ -476,15 +476,15 @@ func (o *daemonOutput) Progress(format string, args ...any) {
 }
 
 func (o *daemonOutput) Status(format string, args ...any) {
-	fmt.Fprintf(o.writer, fmt.Sprintf(format, args...)+"\n")
+	fmt.Fprint(o.writer, fmt.Sprintf(format, args...)+"\n")
 }
 
 func (o *daemonOutput) Result(format string, args ...any) {
-	fmt.Fprintf(o.writer, fmt.Sprintf(format, args...)+"\n")
+	fmt.Fprint(o.writer, fmt.Sprintf(format, args...)+"\n")
 }
 
 func (o *daemonOutput) Error(format string, args ...any) {
-	fmt.Fprintf(o.writer, "ERROR: "+fmt.Sprintf(format, args...)+"\n")
+	fmt.Fprint(o.writer, "ERROR: "+fmt.Sprintf(format, args...)+"\n")
 }
 
 func (o *daemonOutput) JSON(data any) error {

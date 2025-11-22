@@ -166,6 +166,57 @@ func TestActivityTypeEmoji_EdgeCases(t *testing.T) {
 	}
 }
 
+// TestParseActivitiesFromHTML_ExtractsData verifies we extract meaningful data from activities
+func TestParseActivitiesFromHTML_ExtractsData(t *testing.T) {
+	fixturePath := filepath.Join("testdata", "fixtures", "2025.05.26-week.html")
+
+	htmlData, err := os.ReadFile(fixturePath)
+	if err != nil {
+		t.Skip("Fixture not found - run 'just update-fixtures' first")
+	}
+
+	weekStart, _ := time.Parse("2006.01.02", "2025.05.26")
+	activities, err := parseActivitiesFromHTML(htmlData, weekStart, nil)
+	if err != nil {
+		t.Fatalf("parseActivitiesFromHTML failed: %v", err)
+	}
+
+	// Should have 6 activities for this week
+	if len(activities) != 6 {
+		t.Fatalf("Expected 6 activities, got %d", len(activities))
+	}
+
+	// First activity: Monday run, 6.5 km
+	first := activities[0]
+	if first.ID != "135061341" {
+		t.Errorf("First activity ID = %q, want %q", first.ID, "135061341")
+	}
+	if first.Date != "2025-05-26" {
+		t.Errorf("First activity Date = %q, want %q", first.Date, "2025-05-26")
+	}
+	if first.DistanceKm < 6.4 || first.DistanceKm > 6.6 {
+		t.Errorf("First activity DistanceKm = %v, want ~6.5", first.DistanceKm)
+	}
+	if first.TypeEmoji != "🏃" {
+		t.Errorf("First activity TypeEmoji = %q, want 🏃", first.TypeEmoji)
+	}
+
+	// Second activity: Monday cycling, 2.6 km (same day, no date in HTML)
+	second := activities[1]
+	if second.ID != "135061340" {
+		t.Errorf("Second activity ID = %q, want %q", second.ID, "135061340")
+	}
+	if second.Date != "2025-05-26" {
+		t.Errorf("Second activity Date = %q, want %q (should inherit from previous)", second.Date, "2025-05-26")
+	}
+	if second.DistanceKm < 2.5 || second.DistanceKm > 2.7 {
+		t.Errorf("Second activity DistanceKm = %v, want ~2.6", second.DistanceKm)
+	}
+	if second.TypeEmoji != "🚴" {
+		t.Errorf("Second activity TypeEmoji = %q, want 🚴", second.TypeEmoji)
+	}
+}
+
 // TestFindActivityIds_WithFixtures tests the regex-based ID extraction with fixture data
 func TestFindActivityIds_WithFixtures(t *testing.T) {
 	fixturesDir := filepath.Join("testdata", "fixtures")

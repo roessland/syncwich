@@ -1,6 +1,7 @@
 package sw
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -10,11 +11,13 @@ import (
 
 // ActivityInfo represents information about an activity
 type ActivityInfo struct {
-	ID        string
-	Type      string
-	TypeEmoji string
-	WeekStart time.Time
-	WeekEnd   time.Time
+	ID         string
+	Type       string
+	TypeEmoji  string
+	Date       string  // Activity date in YYYY-MM-DD format
+	DistanceKm float64 // Distance in kilometers
+	WeekStart  time.Time
+	WeekEnd    time.Time
 }
 
 // parseActivitiesFromHTML extracts activity information from HTML content
@@ -30,6 +33,9 @@ func parseActivitiesFromHTML(htmlContent []byte, weekStart time.Time, logger int
 	// Create a detector for type detection
 	detector := NewActivityTypeDetector()
 
+	// Track current date for activities that don't show date (same day as previous)
+	var currentDate string
+
 	// Find all training rows
 	doc.Find("tr[id^='training_']").Each(func(i int, s *goquery.Selection) {
 		// Extract activity ID from the id attribute
@@ -43,6 +49,27 @@ func parseActivitiesFromHTML(htmlContent []byte, weekStart time.Time, logger int
 
 		// Get the entire row HTML for fallback detection
 		rowHTML, _ := s.Html()
+
+		// Extract date from health note link (e.g., href="https://runalyze.com/health/note/2025-05-26")
+		activityDate := ""
+		s.Find("a[href*='/health/note/']").Each(func(j int, a *goquery.Selection) {
+			if href, exists := a.Attr("href"); exists {
+				// Extract date from URL like ".../health/note/2025-05-26"
+				if idx := strings.LastIndex(href, "/"); idx != -1 {
+					activityDate = href[idx+1:]
+				}
+			}
+		})
+
+		// If no date found, use the current date (same day as previous activity)
+		if activityDate == "" {
+			activityDate = currentDate
+		} else {
+			currentDate = activityDate
+		}
+
+		// Extract distance from the row
+		distanceKm := parseDistance(s)
 
 		// Find the activity type icon/class
 		activityType := ""
@@ -75,15 +102,37 @@ func parseActivitiesFromHTML(htmlContent []byte, weekStart time.Time, logger int
 		}
 
 		activities = append(activities, ActivityInfo{
-			ID:        activityID,
-			Type:      activityType,
-			TypeEmoji: emoji,
-			WeekStart: weekStart,
-			WeekEnd:   weekEnd,
+			ID:         activityID,
+			Type:       activityType,
+			TypeEmoji:  emoji,
+			Date:       activityDate,
+			DistanceKm: distanceKm,
+			WeekStart:  weekStart,
+			WeekEnd:    weekEnd,
 		})
 	})
 
 	return activities, nil
+}
+
+// parseDistance extracts distance in km from an activity row
+// Handles European format like "6,5 km" or "18,6 km"
+func parseDistance(s *goquery.Selection) float64 {
+	// Match "6,5 km" but NOT "18,7 km/h" (speed)
+	distanceRe := regexp.MustCompile(`(\d+)[,.](\d+)\s*km$`)
+
+	var distance float64
+	s.Find("td").Each(func(i int, td *goquery.Selection) {
+		// Replace non-breaking space with regular space and trim
+		text := strings.TrimSpace(strings.ReplaceAll(td.Text(), "\u00a0", " "))
+		if matches := distanceRe.FindStringSubmatch(text); matches != nil {
+			// Parse "6,5" as 6.5
+			whole := matches[1]
+			decimal := matches[2]
+			fmt.Sscanf(whole+"."+decimal, "%f", &distance)
+		}
+	})
+	return distance
 }
 
 // truncateHTML truncates HTML content for logging

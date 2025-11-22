@@ -57,6 +57,10 @@ help-broken-tests:
     @echo ""
     @echo "The tests will show you exactly what parsing results changed!"
 
+# Check for known vulnerabilities in dependencies
+govulncheck:
+    go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
 # Clean up test artifacts
 clean:
     rm -f coverage.out coverage.html syncwich

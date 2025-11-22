@@ -18,7 +18,7 @@ func NewPresentationService(ol *output.OutputLogger) *PresentationService {
 
 // ShowProgress displays a progress message
 func (ps *PresentationService) ShowProgress(msg string) {
-	ps.ol.Progress(msg)
+	ps.ol.Progress("%s", msg)
 }
 
 // ShowStatus displays a status message

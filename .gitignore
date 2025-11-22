@@ -21,7 +21,7 @@ go.work
 # Config files with sensitive information
 config.yaml
 *.yaml
-!example.config.yaml
+!syncwich.yaml.example
 
 # Coverage reports
 coverage.html
