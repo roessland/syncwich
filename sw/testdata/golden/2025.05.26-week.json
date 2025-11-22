@@ -1,8 +1,10 @@
 [
   {
     "ID": "135061341",
-    "Type": "fa fa-fw vo2max-icon small fa-arrow-right",
+    "Type": "fa-solid vo2max-icon small fa-arrow-up",
     "TypeEmoji": "🏃",
+    "Date": "2025-05-26",
+    "DistanceKm": 6.5,
     "WeekStart": "2025-05-26T00:00:00Z",
     "WeekEnd": "2025-06-01T00:00:00Z"
   },
@@ -10,13 +12,17 @@
     "ID": "135061340",
     "Type": "icons8-Regular-Biking",
     "TypeEmoji": "🚴",
+    "Date": "2025-05-26",
+    "DistanceKm": 2.6,
     "WeekStart": "2025-05-26T00:00:00Z",
     "WeekEnd": "2025-06-01T00:00:00Z"
   },
   {
     "ID": "135433131",
-    "Type": "fa fa-fw vo2max-icon small fa-arrow-down unimportant",
+    "Type": "fa-solid vo2max-icon small fa-arrow-down unimportant",
     "TypeEmoji": "🏃",
+    "Date": "2025-05-29",
+    "DistanceKm": 18.6,
     "WeekStart": "2025-05-26T00:00:00Z",
     "WeekEnd": "2025-06-01T00:00:00Z"
   },
@@ -24,13 +30,17 @@
     "ID": "135436577",
     "Type": "icons8-Regular-Biking",
     "TypeEmoji": "🚴",
+    "Date": "2025-05-29",
+    "DistanceKm": 2.8,
     "WeekStart": "2025-05-26T00:00:00Z",
     "WeekEnd": "2025-06-01T00:00:00Z"
   },
   {
     "ID": "135657751",
-    "Type": "fa fa-fw vo2max-icon small fa-arrow-up  fa-rotate-45",
+    "Type": "fa-solid vo2max-icon small fa-arrow-up",
     "TypeEmoji": "🏃",
+    "Date": "2025-05-31",
+    "DistanceKm": 10.4,
     "WeekStart": "2025-05-26T00:00:00Z",
     "WeekEnd": "2025-06-01T00:00:00Z"
   },
@@ -38,6 +48,8 @@
     "ID": "135657754",
     "Type": "icons8-Regular-Biking",
     "TypeEmoji": "🚴",
+    "Date": "2025-05-31",
+    "DistanceKm": 6.1,
     "WeekStart": "2025-05-26T00:00:00Z",
     "WeekEnd": "2025-06-01T00:00:00Z"
   }
