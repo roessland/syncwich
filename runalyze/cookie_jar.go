@@ -8,6 +8,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -91,6 +92,14 @@ func (j *persistentCookieJar) load() error {
 			}
 		}
 		return err
+	}
+
+	// Treat empty files as having no cookies
+	if len(data) == 0 {
+		if j.shouldLogFn("debug") {
+			j.logger.Printf("Cookie file is empty: %s", j.path)
+		}
+		return nil
 	}
 
 	var entries []cookieEntry
@@ -218,8 +227,27 @@ func (j *persistentCookieJar) save() error {
 		return fmt.Errorf("failed to marshal cookies: %w", err)
 	}
 
-	if err := os.WriteFile(j.path, data, 0600); err != nil {
-		return fmt.Errorf("failed to write cookies: %w", err)
+	// Atomic write: write to temp file in the same directory, then rename.
+	// This ensures the cookie file is never left in a truncated/corrupt state.
+	dir := filepath.Dir(j.path)
+	tmp, err := os.CreateTemp(dir, ".cookies-*.tmp")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file for cookies: %w", err)
+	}
+	tmpPath := tmp.Name()
+
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		os.Remove(tmpPath)
+		return fmt.Errorf("failed to write cookies to temp file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("failed to close temp cookie file: %w", err)
+	}
+	if err := os.Rename(tmpPath, j.path); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("failed to rename temp cookie file: %w", err)
 	}
 
 	if j.shouldLogFn("trace") {
