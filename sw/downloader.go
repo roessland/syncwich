@@ -182,6 +182,14 @@ func downloadActivities(client *runalyze.Client, downloadService *DownloadServic
 		processedCount++
 		if !result.Success {
 			errorCount++
+			errMsg := ""
+			if result.Error != nil {
+				errMsg = result.Error.Error()
+			}
+			logger.Warn("activity download failed",
+				"activity_id", activity.ID,
+				"file_type", result.FileType,
+				"error", errMsg)
 		}
 
 		// Small delay to be nice to the server (only if we actually downloaded)
