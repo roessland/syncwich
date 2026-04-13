@@ -2,7 +2,6 @@ package runalyze
 
 import (
 	"bytes"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -106,7 +105,11 @@ func New(username, password, cookiePath string) (*Client, error) {
 	// Clone the stdlib default transport so we inherit proxy-from-env,
 	// connection pooling, and dial defaults — only override what we need.
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	insecure := insecureTLSEnabled()
+	transport.TLSClientConfig = buildTLSConfig(insecure)
+	if insecure {
+		logger.Printf("WARNING: SW_INSECURE_TLS is set — TLS certificate verification is DISABLED")
+	}
 
 	client := &http.Client{
 		Transport: transport,
