@@ -95,7 +95,7 @@ func TestValidateAndParseDates_DurationSince(t *testing.T) {
 				return
 			}
 
-			actualDiff := int(until.Sub(since).Hours() / 24)
+			actualDiff := calendarDaysBetween(since, until)
 			if actualDiff != tt.expectedDayDiff {
 				t.Errorf("day difference = %d, want %d", actualDiff, tt.expectedDayDiff)
 			}
@@ -127,10 +127,83 @@ func TestValidateAndParseDates_Defaults(t *testing.T) {
 		t.Errorf("since = %v, want %v", since.Format("2006-01-02"), expectedSince.Format("2006-01-02"))
 	}
 
-	// Verify it's actually 28 days difference
-	dayDiff := int(until.Sub(since).Hours() / 24)
-	if dayDiff != 28 {
+	// Verify it's actually 28 calendar days difference. Must count by
+	// calendar days, not wall-clock hours, because DST transitions make
+	// 28 days != 28*24 hours in DST-observing zones.
+	if dayDiff := calendarDaysBetween(since, until); dayDiff != 28 {
 		t.Errorf("day difference = %d, want 28", dayDiff)
+	}
+}
+
+// calendarDaysBetween returns the number of calendar days between two times,
+// ignoring DST-driven hour drift by anchoring both at UTC midnight.
+func calendarDaysBetween(from, to time.Time) int {
+	fromMidnight := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, time.UTC)
+	toMidnight := time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, time.UTC)
+	return int(toMidnight.Sub(fromMidnight).Hours() / 24)
+}
+
+// TestParseSinceDate_DSTBoundary locks in DST-safe behaviour for day and week
+// durations. Before the fix, `since = until.Add(-n*24h)` silently lost or
+// gained an hour across a DST transition, which formatted as the wrong date.
+func TestParseSinceDate_DSTBoundary(t *testing.T) {
+	oslo, err := time.LoadLocation("Europe/Oslo")
+	if err != nil {
+		t.Skipf("Europe/Oslo tzdata not available: %v", err)
+	}
+
+	// Europe/Oslo DST starts on 2026-03-29. Pick an until date after DST,
+	// subtract a span that crosses the transition.
+	until := time.Date(2026, 4, 20, 0, 0, 0, 0, oslo)
+
+	tests := []struct {
+		name  string
+		since string
+		want  string // Expected since date in YYYY-MM-DD (local).
+	}{
+		{"4 weeks crossing DST start", "4w", "2026-03-23"},
+		{"28 days crossing DST start", "28d", "2026-03-23"},
+		{"1 week, same side of DST", "1w", "2026-04-13"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			since, err := parseSinceDate(tt.since, until)
+			if err != nil {
+				t.Fatalf("parseSinceDate(%q, %v): %v", tt.since, until, err)
+			}
+			if got := since.Format("2006-01-02"); got != tt.want {
+				t.Errorf("parseSinceDate(%q, %v) = %s, want %s", tt.since, until.Format("2006-01-02"), got, tt.want)
+			}
+		})
+	}
+}
+
+// TestValidateAndParseDates_DefaultsDSTStable verifies the implicit 4-week
+// default window is DST-safe by forcing the ambient clock to a post-DST
+// moment via TZ-aware arithmetic against a known until.
+func TestValidateAndParseDates_DefaultsDSTStable(t *testing.T) {
+	oslo, err := time.LoadLocation("Europe/Oslo")
+	if err != nil {
+		t.Skipf("Europe/Oslo tzdata not available: %v", err)
+	}
+
+	// 28 calendar days before a post-DST Monday is a pre-DST Monday; the
+	// difference must be exactly 28 days regardless of wall-clock drift.
+	until := time.Date(2026, 4, 20, 0, 0, 0, 0, oslo)
+	since, err := parseSinceDate("4w", until)
+	if err != nil {
+		t.Fatalf("parseSinceDate: %v", err)
+	}
+
+	gotUntilDate := until.Format("2006-01-02")
+	gotSinceDate := since.Format("2006-01-02")
+	if gotSinceDate != "2026-03-23" {
+		t.Errorf("since date = %s, want 2026-03-23 (until=%s)", gotSinceDate, gotUntilDate)
+	}
+	// Midnight in local tz — not some DST-shifted minute.
+	if h, m, s := since.Clock(); h != 0 || m != 0 || s != 0 {
+		t.Errorf("since clock = %02d:%02d:%02d, want 00:00:00", h, m, s)
 	}
 }
 

@@ -1,18 +1,53 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/mitchellh/go-homedir"
 	"github.com/roessland/syncwich/runalyze"
 	"github.com/roessland/syncwich/sw"
 	"github.com/spf13/viper"
 )
+
+// extractExportSubmenu pulls just the <ul> that lists the export links out of a
+// full Runalyze activity page. The rest of the page is user-identifying or
+// contains third-party map tokens, neither of which the export-links test
+// needs. The returned HTML is a minimal document wrapping the extracted <ul>.
+func extractExportSubmenu(pageHTML []byte) ([]byte, error) {
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(pageHTML))
+	if err != nil {
+		return nil, fmt.Errorf("parse html: %w", err)
+	}
+
+	first := doc.Find(`a[href*="/export/file/"]`).First()
+	if first.Length() == 0 {
+		return nil, fmt.Errorf("no export links found in page")
+	}
+
+	ul := first.ParentsFiltered("ul").First()
+	if ul.Length() == 0 {
+		return nil, fmt.Errorf("no <ul> ancestor for export link")
+	}
+
+	inner, err := ul.Html()
+	if err != nil {
+		return nil, fmt.Errorf("render submenu: %w", err)
+	}
+
+	var buf bytes.Buffer
+	buf.WriteString("<!DOCTYPE html>\n<html><body>\n<ul class=\"submenu\">\n")
+	buf.WriteString(strings.TrimSpace(inner))
+	buf.WriteString("\n</ul>\n</body></html>\n")
+	return buf.Bytes(), nil
+}
 
 func main() {
 	var (
@@ -119,18 +154,62 @@ func main() {
 	}
 
 	filename := fmt.Sprintf("%s-week.html", selectedWeek.Format("2006.01.02"))
-	filepath := filepath.Join(fixturesDir, filename)
+	weekPath := filepath.Join(fixturesDir, filename)
 
 	if *dryRun {
-		fmt.Printf("Would create: %s (%d bytes)\n", filepath, len(selectedHTML))
+		fmt.Printf("Would create: %s (%d bytes)\n", weekPath, len(selectedHTML))
 		return
 	}
 
-	if err := os.WriteFile(filepath, selectedHTML, 0644); err != nil {
-		log.Fatalf("Failed to write fixture %s: %v", filepath, err)
+	if err := os.WriteFile(weekPath, selectedHTML, 0644); err != nil {
+		log.Fatalf("Failed to write fixture %s: %v", weekPath, err)
 	}
 
-	fmt.Printf("✅ Created fixture: %s (%d bytes)\n", filepath, len(selectedHTML))
+	fmt.Printf("✅ Created fixture: %s (%d bytes)\n", weekPath, len(selectedHTML))
+
+	// Also refresh an activity-detail fixture. We pick the first activity ID
+	// from the week fixture so the fixture set stays self-consistent.
+	activityIDs := sw.FindActivityIds(selectedHTML)
+	if len(activityIDs) > 0 {
+		activityID := activityIDs[0]
+		activityHTML, err := client.GetActivityPage(activityID)
+		if err != nil {
+			log.Fatalf("Failed to fetch activity page %s: %v", activityID, err)
+		}
+
+		// Sanitize: keep only the export submenu. The full page contains
+		// the account handle, gravatar hash, account ID, and third-party
+		// map provider tokens — none of which belong in a public repo.
+		sanitizedHTML, err := extractExportSubmenu(activityHTML)
+		if err != nil {
+			log.Fatalf("Failed to sanitize activity page %s: %v", activityID, err)
+		}
+		activityHTML = sanitizedHTML
+
+		// Remove any stale activity-*.html fixtures so we don't accumulate them.
+		stale, _ := filepath.Glob(filepath.Join(fixturesDir, "activity-*.html"))
+		for _, p := range stale {
+			_ = os.Remove(p)
+		}
+		// Also remove matching stale golden files.
+		if staleGolden, _ := filepath.Glob(filepath.Join("sw", "testdata", "golden", "activity-*.json")); len(staleGolden) > 0 {
+			for _, p := range staleGolden {
+				_ = os.Remove(p)
+			}
+		}
+
+		activityFilename := fmt.Sprintf("activity-%s.html", activityID)
+		activityPath := filepath.Join(fixturesDir, activityFilename)
+
+		if *dryRun {
+			fmt.Printf("Would create: %s (%d bytes)\n", activityPath, len(activityHTML))
+		} else {
+			if err := os.WriteFile(activityPath, activityHTML, 0644); err != nil {
+				log.Fatalf("Failed to write activity fixture %s: %v", activityPath, err)
+			}
+			fmt.Printf("✅ Created fixture: %s (%d bytes)\n", activityPath, len(activityHTML))
+		}
+	}
 
 	// Check if golden file exists
 	goldenPath := fmt.Sprintf("sw/testdata/golden/%s-week.json", selectedWeek.Format("2006.01.02"))

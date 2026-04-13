@@ -81,11 +81,27 @@ func parseDuration(durationStr string) (time.Duration, error) {
 // parseSinceDate parses a --since parameter which can be either:
 // - A date string (YYYY-MM-DD, YYYY-MM, or YYYY format)
 // - A duration string (30d, 2w, 1y, 6m) - relative to the until date
+//
+// Day and week units use calendar arithmetic (AddDate) so results stay
+// anchored at local midnight across DST transitions. Month and year units
+// remain approximate (30d/365d) for backward-compatible semantics.
 func parseSinceDate(sinceStr string, untilDate time.Time) (time.Time, error) {
-	// First, try to parse as a duration
-	if duration, err := parseDuration(sinceStr); err == nil {
-		// Calculate the date by subtracting the duration from the until date
-		return untilDate.Add(-duration), nil
+	re := regexp.MustCompile(`^([0-9]+)([ywdm])$`)
+	if matches := re.FindStringSubmatch(sinceStr); len(matches) == 3 {
+		value, err := strconv.Atoi(matches[1])
+		if err != nil {
+			return time.Time{}, fmt.Errorf("invalid duration value: %s", matches[1])
+		}
+		switch matches[2] {
+		case "d":
+			return untilDate.AddDate(0, 0, -value), nil
+		case "w":
+			return untilDate.AddDate(0, 0, -7*value), nil
+		case "m":
+			return untilDate.Add(-time.Duration(value) * 30 * 24 * time.Hour), nil
+		case "y":
+			return untilDate.Add(-time.Duration(value) * 365 * 24 * time.Hour), nil
+		}
 	}
 
 	// If not a duration, try to parse as a date using the existing logic
@@ -115,9 +131,9 @@ func ValidateAndParseDates(untilStr, sinceStr string) (since, until time.Time, e
 			return time.Time{}, time.Time{}, fmt.Errorf("failed to parse since date: %w", err)
 		}
 	} else {
-		// Default to 4 weeks before the until date
-		defaultDuration, _ := parseDuration("4w")
-		since = until.Add(-defaultDuration)
+		// Default to 4 weeks before the until date, using calendar
+		// arithmetic so the result stays at local midnight across DST.
+		since = until.AddDate(0, 0, -28)
 	}
 
 	// Validate that since is before until

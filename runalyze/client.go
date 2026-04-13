@@ -21,6 +21,12 @@ import (
 
 const (
 	baseURL = "https://runalyze.com"
+
+	// FitFormat and TcxFormat are the export-URL format segments Runalyze
+	// serves from /activity/{id}/export/file/{format}. Kept exported so
+	// tests can cross-check them against a real activity page's link set.
+	FitFormat = "fit-original"
+	TcxFormat = "tcx"
 )
 
 var (
@@ -372,12 +378,45 @@ func (c *Client) getActivityExport(activityID, format string) ([]byte, string, e
 
 // GetFit retrieves a FIT file for a specific activity ID
 func (c *Client) GetFit(activityID string) ([]byte, string, error) {
-	return c.getActivityExport(activityID, "fit")
+	return c.getActivityExport(activityID, FitFormat)
 }
 
 // GetTcx retrieves a TCX file for a specific activity ID
 func (c *Client) GetTcx(activityID string) ([]byte, string, error) {
-	return c.getActivityExport(activityID, "tcx")
+	return c.getActivityExport(activityID, TcxFormat)
+}
+
+// GetActivityPage retrieves the HTML of an activity's detail page.
+// Used to scrape the export submenu so tests can verify the URL scheme
+// hasn't drifted.
+func (c *Client) GetActivityPage(activityID string) ([]byte, error) {
+	url := fmt.Sprintf("%s/activity/%s", baseURL, activityID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	for k, v := range commonHeaders {
+		req.Header.Set(k, v)
+	}
+
+	resp, body, err := c.doRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusFound {
+		if strings.HasSuffix(resp.Header.Get("Location"), "/login") {
+			return nil, ErrRedirectedToLogin
+		}
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	return body, nil
 }
 
 // PersistCookies explicitly saves the current cookies to disk

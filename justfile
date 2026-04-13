@@ -57,6 +57,10 @@ help-broken-tests:
     @echo ""
     @echo "The tests will show you exactly what parsing results changed!"
 
+# Run linter
+lint:
+    go run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run ./...
+
 # Check for known vulnerabilities in dependencies
 govulncheck:
     go run golang.org/x/vuln/cmd/govulncheck@latest ./...

@@ -16,7 +16,7 @@ func TestParseActivitiesFromHTML_Fixtures(t *testing.T) {
 	fixturesDir := filepath.Join("testdata", "fixtures")
 	goldenDir := filepath.Join("testdata", "golden")
 
-	fixtures, err := filepath.Glob(filepath.Join(fixturesDir, "*.html"))
+	fixtures, err := filepath.Glob(filepath.Join(fixturesDir, "*-week.html"))
 	if err != nil {
 		t.Fatalf("Failed to find fixture files: %v", err)
 	}
@@ -222,7 +222,7 @@ func TestFindActivityIds_WithFixtures(t *testing.T) {
 	fixturesDir := filepath.Join("testdata", "fixtures")
 
 	// Check if fixtures exist
-	fixtures, err := filepath.Glob(filepath.Join(fixturesDir, "*.html"))
+	fixtures, err := filepath.Glob(filepath.Join(fixturesDir, "*-week.html"))
 	if err != nil || len(fixtures) == 0 {
 		t.Skip("No fixture files found - run 'just update-fixtures' to generate them")
 	}
