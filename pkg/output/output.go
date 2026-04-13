@@ -3,7 +3,6 @@ package output
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -207,11 +206,6 @@ func (ol *OutputLogger) ActivityLineMulti(emoji, activityID string, multiFileInf
 	return area
 }
 
-// buildActivityLine creates a formatted activity line (legacy method)
-func (ol *OutputLogger) buildActivityLine(emoji, activityID string, fileInfo FileInfo) string {
-	return ol.buildActivityLineMulti(emoji, activityID, MultiFileInfo{Primary: fileInfo})
-}
-
 // buildActivityLineMulti creates a formatted activity line with support for multiple files
 func (ol *OutputLogger) buildActivityLineMulti(emoji, activityID string, multiFileInfo MultiFileInfo) string {
 	var parts []string
@@ -299,7 +293,7 @@ func (ol *OutputLogger) UpdateActivityLineMulti(area *pterm.AreaPrinter, emoji, 
 
 	// If download is complete or error, stop the area printer and add newline
 	if multiFileInfo.Primary.State == StateDownloaded || multiFileInfo.Primary.State == StateError || multiFileInfo.Primary.State == StateNotAvailable {
-		area.Stop()
+		_ = area.Stop()
 		pterm.Println() // Add newline after stopping area printer
 	}
 }
@@ -389,104 +383,3 @@ func (l *loggerImpl) Error(msg string, args ...any) {
 	l.slog.Error(msg, args...)
 }
 
-// interactiveOutput provides pretty output for human users
-type interactiveOutput struct {
-	writer io.Writer
-}
-
-func (o *interactiveOutput) Progress(format string, args ...any) {
-	fmt.Fprintf(o.writer, "⏳ "+format+"\n", args...)
-}
-
-func (o *interactiveOutput) Status(format string, args ...any) {
-	fmt.Fprintf(o.writer, "ℹ️  "+format+"\n", args...)
-}
-
-func (o *interactiveOutput) Result(format string, args ...any) {
-	fmt.Fprintf(o.writer, "✅ "+format+"\n", args...)
-}
-
-func (o *interactiveOutput) Error(format string, args ...any) {
-	fmt.Fprintf(o.writer, "❌ "+format+"\n", args...)
-}
-
-func (o *interactiveOutput) JSON(data any) error {
-	// In interactive mode, we don't output JSON
-	return nil
-}
-
-// jsonOutput provides structured JSON output
-type jsonOutput struct {
-	writer io.Writer
-	pretty bool
-}
-
-func (o *jsonOutput) Progress(format string, args ...any) {
-	o.writeJSON(map[string]any{
-		"type":      "progress",
-		"message":   fmt.Sprintf(format, args...),
-		"timestamp": time.Now().Unix(),
-	})
-}
-
-func (o *jsonOutput) Status(format string, args ...any) {
-	o.writeJSON(map[string]any{
-		"type":      "status",
-		"message":   fmt.Sprintf(format, args...),
-		"timestamp": time.Now().Unix(),
-	})
-}
-
-func (o *jsonOutput) Result(format string, args ...any) {
-	o.writeJSON(map[string]any{
-		"type":      "result",
-		"message":   fmt.Sprintf(format, args...),
-		"timestamp": time.Now().Unix(),
-	})
-}
-
-func (o *jsonOutput) Error(format string, args ...any) {
-	o.writeJSON(map[string]any{
-		"type":      "error",
-		"message":   fmt.Sprintf(format, args...),
-		"timestamp": time.Now().Unix(),
-	})
-}
-
-func (o *jsonOutput) JSON(data any) error {
-	return o.writeJSON(data)
-}
-
-func (o *jsonOutput) writeJSON(data any) error {
-	var encoder *json.Encoder
-	encoder = json.NewEncoder(o.writer)
-	if o.pretty {
-		encoder.SetIndent("", "  ")
-	}
-	return encoder.Encode(data)
-}
-
-// daemonOutput provides minimal output for daemon mode
-type daemonOutput struct {
-	writer io.Writer
-}
-
-func (o *daemonOutput) Progress(format string, args ...any) {
-	// Minimal output in daemon mode
-}
-
-func (o *daemonOutput) Status(format string, args ...any) {
-	fmt.Fprint(o.writer, fmt.Sprintf(format, args...)+"\n")
-}
-
-func (o *daemonOutput) Result(format string, args ...any) {
-	fmt.Fprint(o.writer, fmt.Sprintf(format, args...)+"\n")
-}
-
-func (o *daemonOutput) Error(format string, args ...any) {
-	fmt.Fprint(o.writer, "ERROR: "+fmt.Sprintf(format, args...)+"\n")
-}
-
-func (o *daemonOutput) JSON(data any) error {
-	return json.NewEncoder(o.writer).Encode(data)
-}

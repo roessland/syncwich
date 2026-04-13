@@ -42,42 +42,6 @@ func parseUntilDate(dateStr string) (time.Time, error) {
 	return time.Date(nextMonday.Year(), nextMonday.Month(), nextMonday.Day(), 0, 0, 0, 0, nextMonday.Location()), nil
 }
 
-// parseDuration parses a simplified prometheus-style duration string
-// Supports: y (years), w (weeks), d (days), m (months)
-// Examples: "30d", "2w", "1y", "6m"
-// No combinations allowed (e.g., "1y2w" is invalid)
-func parseDuration(durationStr string) (time.Duration, error) {
-	// Regex to match the simplified duration format
-	re := regexp.MustCompile(`^([0-9]+)([ywdm])$`)
-	matches := re.FindStringSubmatch(durationStr)
-
-	if len(matches) != 3 {
-		return 0, fmt.Errorf("invalid duration format. Use format like '30d', '2w', '1y', or '6m' (no combinations allowed)")
-	}
-
-	value, err := strconv.Atoi(matches[1])
-	if err != nil {
-		return 0, fmt.Errorf("invalid duration value: %s", matches[1])
-	}
-
-	unit := matches[2]
-
-	switch unit {
-	case "y":
-		// Approximate: 365 days per year
-		return time.Duration(value) * 365 * 24 * time.Hour, nil
-	case "w":
-		return time.Duration(value) * 7 * 24 * time.Hour, nil
-	case "d":
-		return time.Duration(value) * 24 * time.Hour, nil
-	case "m":
-		// Approximate: 30 days per month
-		return time.Duration(value) * 30 * 24 * time.Hour, nil
-	default:
-		return 0, fmt.Errorf("invalid duration unit: %s (use y, w, d, or m)", unit)
-	}
-}
-
 // parseSinceDate parses a --since parameter which can be either:
 // - A date string (YYYY-MM-DD, YYYY-MM, or YYYY format)
 // - A duration string (30d, 2w, 1y, 6m) - relative to the until date

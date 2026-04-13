@@ -5,19 +5,15 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/roessland/syncwich/pkg/errs"
 	"github.com/roessland/syncwich/sw"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var (
-	username   string
-	password   string
 	cookiePath string
 	cfgFile    string
-	untilStr   string
-	sinceStr   string
-	jsonMode   bool
 )
 
 var rootCmd = &cobra.Command{
@@ -87,10 +83,10 @@ func init() {
 	downloadCmd.Flags().Bool("json", false, "Output structured JSON logs instead of interactive mode")
 
 	// Bind environment variables
-	viper.BindEnv("username", "SW_RUNALYZE_USERNAME")
-	viper.BindEnv("password", "SW_RUNALYZE_PASSWORD")
-	viper.BindEnv("cookie_path", "SW_RUNALYZE_COOKIE_PATH")
-	viper.BindEnv("save_dir", "SW_RUNALYZE_SAVE_DIR")
+	errs.Check(viper.BindEnv("username", "SW_RUNALYZE_USERNAME"))
+	errs.Check(viper.BindEnv("password", "SW_RUNALYZE_PASSWORD"))
+	errs.Check(viper.BindEnv("cookie_path", "SW_RUNALYZE_COOKIE_PATH"))
+	errs.Check(viper.BindEnv("save_dir", "SW_RUNALYZE_SAVE_DIR"))
 
 	// Add download command to root
 	rootCmd.AddCommand(downloadCmd)
@@ -116,6 +112,7 @@ func initConfig() {
 
 	viper.AutomaticEnv() // read in environment variables that match
 
-	// If a config file is found, read it in silently (logging is via LOG_LEVEL env var)
-	viper.ReadInConfig()
+	// If a config file is found, read it in silently (logging is via LOG_LEVEL env var).
+	// A missing config file is a normal case, so we intentionally ignore the error.
+	_ = viper.ReadInConfig()
 }

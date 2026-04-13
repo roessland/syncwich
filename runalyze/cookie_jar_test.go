@@ -70,7 +70,7 @@ func TestSave_AtomicWrite(t *testing.T) {
 	if err := os.Chmod(dir, 0500); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Chmod(dir, 0700) })
+	t.Cleanup(func() { _ = os.Chmod(dir, 0700) })
 
 	// Try to save again — this should fail
 	jar.SetCookies(runalyzeURL, []*http.Cookie{

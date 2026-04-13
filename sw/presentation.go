@@ -3,6 +3,7 @@ package sw
 import (
 	"time"
 
+	"github.com/roessland/syncwich/pkg/errs"
 	"github.com/roessland/syncwich/pkg/output"
 )
 
@@ -79,7 +80,7 @@ func (ps *PresentationService) ShowFinalResults(summary *DownloadSummary) {
 // ShowJSONResults outputs structured JSON results
 func (ps *PresentationService) ShowJSONResults(summary *DownloadSummary, jsonMode bool) {
 	if jsonMode {
-		ps.ol.JSON(map[string]any{
+		errs.Check(ps.ol.JSON(map[string]any{
 			"summary": map[string]int{
 				"processed": summary.Processed,
 				"errors":    summary.Errors,
@@ -88,6 +89,6 @@ func (ps *PresentationService) ShowJSONResults(summary *DownloadSummary, jsonMod
 				"since": summary.Since.Format("2006-01-02"),
 				"until": summary.Until.Format("2006-01-02"),
 			},
-		})
+		}))
 	}
 }

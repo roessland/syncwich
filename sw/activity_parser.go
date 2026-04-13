@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/roessland/syncwich/pkg/errs"
 )
 
 // ActivityInfo represents information about an activity
@@ -129,7 +130,7 @@ func parseDistance(s *goquery.Selection) float64 {
 			// Parse "6,5" as 6.5
 			whole := matches[1]
 			decimal := matches[2]
-			fmt.Sscanf(whole+"."+decimal, "%f", &distance)
+			errs.Check2(fmt.Sscanf(whole+"."+decimal, "%f", &distance))
 		}
 	})
 	return distance

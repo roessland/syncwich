@@ -67,12 +67,6 @@ func (it *ActivityIterator) fetchActivitiesForWeek() error {
 	// Parse activities from HTML
 	activities, err := parseActivitiesFromHTML(data, it.untilDate, it.logger)
 	if err != nil {
-		// Log error but don't fail completely, fall back to regex
-		if it.logger != nil {
-			// Use reflection or type assertion to call Debug method if available
-			// For now, we'll just ignore the error and fall back
-		}
-
 		// Fallback to old regex method
 		ids := FindActivityIds(data)
 		activities = make([]ActivityInfo, len(ids))
