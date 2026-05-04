@@ -19,8 +19,6 @@ import (
 )
 
 const (
-	baseURL = "https://runalyze.com"
-
 	// FitFormat and TcxFormat are the export-URL format segments Runalyze
 	// serves from /activity/{id}/export/file/{format}. Kept exported so
 	// tests can cross-check them against a real activity page's link set.
@@ -28,23 +26,55 @@ const (
 	TcxFormat = "tcx"
 )
 
+// baseURL is a var (not const) so tests can point the client at httptest.
+var baseURL = "https://runalyze.com"
+
 var (
+	// commonHeaders are sent on every request regardless of mode. Per-call
+	// helpers layer on document- vs XHR-specific headers (sec-fetch-*,
+	// accept, etc.) — keep those out of here.
 	commonHeaders = map[string]string{
-		"accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-		"accept-language":           "en-GB,en;q=0.9,nb-NO;q=0.8,nb;q=0.7,sv-SE;q=0.6,sv;q=0.5,en-US;q=0.4",
-		"sec-ch-ua":                 "\"Google Chrome\";v=\"137\", \"Chromium\";v=\"137\", \"Not/A)Brand\";v=\"24\"",
-		"sec-ch-ua-mobile":          "?0",
-		"sec-ch-ua-platform":        "\"macOS\"",
-		"sec-fetch-dest":            "document",
-		"sec-fetch-mode":            "navigate",
-		"sec-fetch-site":            "same-origin",
-		"sec-fetch-user":            "?1",
-		"upgrade-insecure-requests": "1",
+		"user-agent":         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+		"accept-language":    "en-GB,en;q=0.9,nb-NO;q=0.8,nb;q=0.7,sv-SE;q=0.6,sv;q=0.5,en-US;q=0.4",
+		"sec-ch-ua":          `"Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"`,
+		"sec-ch-ua-mobile":   "?0",
+		"sec-ch-ua-platform": `"macOS"`,
+		"dnt":                "1",
 	}
 
 	// Common errors
 	ErrRedirectedToLogin = errors.New("redirected to login page")
 )
+
+// setDocumentHeaders mirrors what Chrome sends on a top-level navigation.
+func setDocumentHeaders(req *http.Request) {
+	for k, v := range commonHeaders {
+		req.Header.Set(k, v)
+	}
+	req.Header.Set("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+	req.Header.Set("sec-fetch-dest", "document")
+	req.Header.Set("sec-fetch-mode", "navigate")
+	req.Header.Set("sec-fetch-site", "same-origin")
+	req.Header.Set("sec-fetch-user", "?1")
+	req.Header.Set("upgrade-insecure-requests", "1")
+}
+
+// setXHRHeaders mirrors what Chrome sends from a fetch()/XHR. The runalyze
+// WAF returns 502 if document-only headers (sec-fetch-user,
+// upgrade-insecure-requests) leak into an XHR, so this helper does NOT set
+// them — callers must not add them either.
+func setXHRHeaders(req *http.Request) {
+	for k, v := range commonHeaders {
+		req.Header.Set(k, v)
+	}
+	req.Header.Set("accept", "text/html, */*; q=0.01")
+	req.Header.Set("sec-fetch-dest", "empty")
+	req.Header.Set("sec-fetch-mode", "cors")
+	req.Header.Set("sec-fetch-site", "same-origin")
+	req.Header.Set("x-requested-with", "XMLHttpRequest")
+	req.Header.Set("priority", "u=1, i")
+	req.Header.Set("referer", baseURL+"/dashboard")
+}
 
 // Client represents a Runalyze API client
 type Client struct {
@@ -239,9 +269,7 @@ func (c *Client) doGetLogin() (string, error) {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
-	for k, v := range commonHeaders {
-		req.Header.Set(k, v)
-	}
+	setDocumentHeaders(req)
 
 	resp, body, err := c.doRequest(req)
 	if err != nil {
@@ -277,9 +305,7 @@ func (c *Client) doPostLogin(csrfToken string) error {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	for k, v := range commonHeaders {
-		req.Header.Set(k, v)
-	}
+	setDocumentHeaders(req)
 	req.Header.Set("content-type", "application/x-www-form-urlencoded")
 	req.Header.Set("cache-control", "max-age=0")
 
@@ -312,13 +338,7 @@ func (c *Client) GetDataBrowser(startOfWeek time.Time) ([]byte, error) {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	for k, v := range commonHeaders {
-		req.Header.Set(k, v)
-	}
-	req.Header.Set("x-requested-with", "XMLHttpRequest")
-	req.Header.Set("accept", "text/html, */*; q=0.01")
-	req.Header.Set("sec-fetch-dest", "empty")
-	req.Header.Set("sec-fetch-mode", "cors")
+	setXHRHeaders(req)
 
 	resp, body, err := c.doRequest(req)
 	if err != nil {
@@ -349,9 +369,7 @@ func (c *Client) getActivityExport(activityID, format string) ([]byte, string, e
 		return nil, "", fmt.Errorf("failed to create request: %w", err)
 	}
 
-	for k, v := range commonHeaders {
-		req.Header.Set(k, v)
-	}
+	setDocumentHeaders(req)
 	req.Header.Set("referer", baseURL+"/dashboard")
 
 	resp, body, err := c.doRequest(req)
@@ -401,9 +419,7 @@ func (c *Client) GetActivityPage(activityID string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	for k, v := range commonHeaders {
-		req.Header.Set(k, v)
-	}
+	setDocumentHeaders(req)
 
 	resp, body, err := c.doRequest(req)
 	if err != nil {
