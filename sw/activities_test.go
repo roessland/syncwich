@@ -13,7 +13,7 @@ func TestFindActivityIds(t *testing.T) {
 		{
 			name: "single activity",
 			html: `<table>
-				<tr class="r training" id="training_135061340" onclick="Pace.restart();Runalyze.Training.load(135061340, false, event)">
+				<tr class="text-right" data-load-target="#activity" data-load-url="https://runalyze.com/activity/135061340" data-activity-id="135061340">
 					<td>Some content</td>
 				</tr>
 			</table>`,
@@ -22,13 +22,13 @@ func TestFindActivityIds(t *testing.T) {
 		{
 			name: "multiple activities",
 			html: `<table>
-				<tr class="r training" id="training_135061340" onclick="Pace.restart();Runalyze.Training.load(135061340, false, event)">
+				<tr class="text-right" data-load-target="#activity" data-load-url="https://runalyze.com/activity/135061340" data-activity-id="135061340">
 					<td>First activity</td>
 				</tr>
-				<tr class="r training" id="training_135061341" onclick="Pace.restart();Runalyze.Training.load(135061341, false, event)">
+				<tr class="text-right" data-load-target="#activity" data-load-url="https://runalyze.com/activity/135061341" data-activity-id="135061341">
 					<td>Second activity</td>
 				</tr>
-				<tr class="r training" id="training_135061342" onclick="Pace.restart();Runalyze.Training.load(135061342, false, event)">
+				<tr class="text-right" data-load-target="#activity" data-load-url="https://runalyze.com/activity/135061342" data-activity-id="135061342">
 					<td>Third activity</td>
 				</tr>
 			</table>`,
@@ -49,13 +49,13 @@ func TestFindActivityIds(t *testing.T) {
 				<tr class="r other" id="other_123">
 					<td>Not an activity</td>
 				</tr>
-				<tr class="r training" id="training_135061340" onclick="Pace.restart();Runalyze.Training.load(135061340, false, event)">
+				<tr class="text-right" data-load-target="#activity" data-load-url="https://runalyze.com/activity/135061340" data-activity-id="135061340">
 					<td>First activity</td>
 				</tr>
 				<tr class="r other" id="other_456">
 					<td>Also not an activity</td>
 				</tr>
-				<tr class="r training" id="training_135061341" onclick="Pace.restart();Runalyze.Training.load(135061341, false, event)">
+				<tr class="text-right" data-load-target="#activity" data-load-url="https://runalyze.com/activity/135061341" data-activity-id="135061341">
 					<td>Second activity</td>
 				</tr>
 			</table>`,
@@ -64,9 +64,9 @@ func TestFindActivityIds(t *testing.T) {
 		{
 			name: "malformed HTML",
 			html: `<table>
-				<tr class="r training" id="training_135061340" onclick="Pace.restart();Runalyze.Training.load(135061340, false, event)">
+				<tr class="text-right" data-load-target="#activity" data-load-url="https://runalyze.com/activity/135061340" data-activity-id="135061340">
 					<td>First activity
-				<tr class="r training" id="training_135061341" onclick="Pace.restart();Runalyze.Training.load(135061341, false, event)">
+				<tr class="text-right" data-load-target="#activity" data-load-url="https://runalyze.com/activity/135061341" data-activity-id="135061341">
 					<td>Second activity
 			</table>`,
 			expected: []string{"135061340", "135061341"},

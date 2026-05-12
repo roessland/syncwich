@@ -38,15 +38,12 @@ func parseActivitiesFromHTML(htmlContent []byte, weekStart time.Time, logger int
 	var currentDate string
 
 	// Find all training rows
-	doc.Find("tr[id^='training_']").Each(func(i int, s *goquery.Selection) {
-		// Extract activity ID from the id attribute
-		id, exists := s.Attr("id")
+	doc.Find("tr[data-activity-id]").Each(func(i int, s *goquery.Selection) {
+		// Extract activity ID from the data-activity-id attribute
+		activityID, exists := s.Attr("data-activity-id")
 		if !exists {
 			return
 		}
-
-		// Remove "training_" prefix to get just the ID
-		activityID := strings.TrimPrefix(id, "training_")
 
 		// Get the entire row HTML for fallback detection
 		rowHTML, _ := s.Html()
@@ -72,22 +69,27 @@ func parseActivitiesFromHTML(htmlContent []byte, weekStart time.Time, logger int
 		// Extract distance from the row
 		distanceKm := parseDistance(s)
 
-		// Find the activity type icon/class
+		// Find the activity type icon/class. Prefer icons8-* icons (the
+		// dedicated activity type sprite); otherwise fall back to the first
+		// generic icon class. We skip fa-heart-pulse since that's the health
+		// note link, not an activity type.
 		activityType := ""
-		s.Find("td").First().Find("i").Each(func(j int, iconSel *goquery.Selection) {
+		s.Find("i[class*='icons8-']").EachWithBreak(func(j int, iconSel *goquery.Selection) bool {
 			if class, exists := iconSel.Attr("class"); exists {
 				activityType = class
-				return
+				return false
 			}
+			return true
 		})
 
-		// If no icon found, try to find it in other ways
 		if activityType == "" {
-			s.Find("i[class*='icon']").Each(func(j int, iconSel *goquery.Selection) {
-				if class, exists := iconSel.Attr("class"); exists {
-					activityType = class
-					return
+			s.Find("i[class*='icon']").EachWithBreak(func(j int, iconSel *goquery.Selection) bool {
+				class, exists := iconSel.Attr("class")
+				if !exists || strings.Contains(class, "fa-heart-pulse") {
+					return true
 				}
+				activityType = class
+				return false
 			})
 		}
 
@@ -146,7 +148,7 @@ func truncateHTML(html string, maxLen int) string {
 
 // FindActivityIds is the regex-based method for extracting activity IDs from HTML
 func FindActivityIds(htmlContent []byte) []string {
-	re := regexp.MustCompile(`id="training_(\d+)"`)
+	re := regexp.MustCompile(`data-activity-id="(\d+)"`)
 	matches := re.FindAllStringSubmatch(string(htmlContent), -1)
 	ids := make([]string, len(matches))
 	for i, match := range matches {

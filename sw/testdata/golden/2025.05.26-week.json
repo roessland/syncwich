@@ -1,7 +1,7 @@
 [
   {
     "ID": "135061341",
-    "Type": "fa-solid vo2max-icon small fa-arrow-up",
+    "Type": "icons8-Running",
     "TypeEmoji": "🏃",
     "Date": "2025-05-26",
     "DistanceKm": 6.5,
@@ -19,7 +19,7 @@
   },
   {
     "ID": "135433131",
-    "Type": "fa-solid vo2max-icon small fa-arrow-down unimportant",
+    "Type": "icons8-Running",
     "TypeEmoji": "🏃",
     "Date": "2025-05-29",
     "DistanceKm": 18.6,
@@ -37,7 +37,7 @@
   },
   {
     "ID": "135657751",
-    "Type": "fa-solid vo2max-icon small fa-arrow-up",
+    "Type": "icons8-Running",
     "TypeEmoji": "🏃",
     "Date": "2025-05-31",
     "DistanceKm": 10.4,
